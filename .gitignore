@@ -1,0 +1,92 @@
+# Go ignores
+/bin/
+/pkg/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# Random
+notes
+
+# Golang Dep
+/vendor/
+/Godeps/
+
+# Python ignores
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+ENV/
+.env
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node/TypeScript/React ignores
+node_modules/
+/build
+.npm
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+
+# TypeScript specific
+*.tsbuildinfo
+*.js.map
+
+# IDE specific
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Prometheus data
+data/
+prometheus.yml
+*_rules.yml
+*_alerts.yml
+
+# Build outputs
+/dist
+/tmp
+/out-tsc
+
+# Testing
+/coverage
+.nyc_output
+.pytest_cache/
+htmlcov/
