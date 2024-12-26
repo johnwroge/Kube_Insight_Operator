@@ -1,0 +1,11 @@
+apiVersion: monitoring.monitoring.example.com/v1alpha1  # Changed this line
+kind: ObservabilityStack
+metadata:
+  name: monitoring-test
+spec:
+  prometheus:
+    enabled: true
+    storage: "10Gi"
+    retention: "15d"
+  grafana:
+    enabled: true

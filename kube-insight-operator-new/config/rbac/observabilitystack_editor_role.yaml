@@ -1,0 +1,27 @@
+# permissions for end users to edit observabilitystacks.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-insight-operator-new
+    app.kubernetes.io/managed-by: kustomize
+  name: observabilitystack-editor-role
+rules:
+- apiGroups:
+  - monitoring.monitoring.example.com
+  resources:
+  - observabilitystacks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - monitoring.monitoring.example.com
+  resources:
+  - observabilitystacks/status
+  verbs:
+  - get
