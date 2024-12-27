@@ -1,4 +1,4 @@
-apiVersion: monitoring.monitoring.example.com/v1alpha1  # Changed this line
+apiVersion: monitoring.monitoring.example.com/v1alpha1
 kind: ObservabilityStack
 metadata:
   name: monitoring-test
@@ -7,5 +7,9 @@ spec:
     enabled: true
     storage: "10Gi"
     retention: "15d"
+    nodeExporter:
+      enabled: true
+    kubeStateMetrics:
+      enabled: true
   grafana:
     enabled: true

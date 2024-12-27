@@ -56,13 +56,27 @@ spec:
                 description: Prometheus configuration
                 properties:
                   enabled:
-                    description: Whether Prometheus is enabled
                     type: boolean
+                  kubeStateMetrics:
+                    description: KubeStateMetricsSpec defines the configuration for
+                      kube-state-metrics
+                    properties:
+                      enabled:
+                        type: boolean
+                    required:
+                    - enabled
+                    type: object
+                  nodeExporter:
+                    description: Using named types instead of anonymous structs
+                    properties:
+                      enabled:
+                        type: boolean
+                    required:
+                    - enabled
+                    type: object
                   retention:
-                    description: Retention period (e.g., "15d")
                     type: string
                   storage:
-                    description: Storage size (e.g., "10Gi")
                     type: string
                 required:
                 - enabled

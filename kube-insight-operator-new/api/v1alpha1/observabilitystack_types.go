@@ -21,18 +21,38 @@ import (
 )
 
 // PrometheusSpec defines the configuration for Prometheus
+// type PrometheusSpec struct {
+//     Enabled bool `json:"enabled"`
+//     Storage string `json:"storage,omitempty"`
+//     Retention string `json:"retention,omitempty"`
+//     // Adding node exporter configuration
+//     NodeExporter struct {
+//         Enabled bool `json:"enabled"`
+//     } `json:"nodeExporter,omitempty"`
+//     // Adding kube-state-metrics configuration
+//     KubeStateMetrics struct {
+//         Enabled bool `json:"enabled"`
+//     } `json:"kubeStateMetrics,omitempty"`
+// }
+
+// NodeExporterSpec defines the configuration for node-exporter
+type NodeExporterSpec struct {
+	Enabled bool `json:"enabled"`
+}
+
+// KubeStateMetricsSpec defines the configuration for kube-state-metrics
+type KubeStateMetricsSpec struct {
+	Enabled bool `json:"enabled"`
+}
+
+// PrometheusSpec defines the configuration for Prometheus
 type PrometheusSpec struct {
-    Enabled bool `json:"enabled"`
-    Storage string `json:"storage,omitempty"`
-    Retention string `json:"retention,omitempty"`
-    // Adding node exporter configuration
-    NodeExporter struct {
-        Enabled bool `json:"enabled"`
-    } `json:"nodeExporter,omitempty"`
-    // Adding kube-state-metrics configuration
-    KubeStateMetrics struct {
-        Enabled bool `json:"enabled"`
-    } `json:"kubeStateMetrics,omitempty"`
+	Enabled   bool   `json:"enabled"`
+	Storage   string `json:"storage,omitempty"`
+	Retention string `json:"retention,omitempty"`
+	// Using named types instead of anonymous structs
+	NodeExporter     NodeExporterSpec     `json:"nodeExporter,omitempty"`
+	KubeStateMetrics KubeStateMetricsSpec `json:"kubeStateMetrics,omitempty"`
 }
 
 // GrafanaSpec defines the configuration for Grafana
