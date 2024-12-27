@@ -14,6 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//+kubebuilder:rbac:groups=apps,resources=deployments;daemonsets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+
 package controller
 
 import (
@@ -80,103 +84,199 @@ func (r *ObservabilityStackReconciler) Reconcile(ctx context.Context, req ctrl.R
 	return ctrl.Result{}, nil
 }
 
+// remove 12/27
 // reconcilePrometheus handles the reconciliation of Prometheus resources
+// func (r *ObservabilityStackReconciler) reconcilePrometheus(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
+// 	// Create StatefulSet for Prometheus
+// 	sts := &appsv1.StatefulSet{
+// 		ObjectMeta: metav1.ObjectMeta{
+// 			Name:      fmt.Sprintf("%s-prometheus", stack.Name),
+// 			Namespace: stack.Namespace,
+// 			Labels: map[string]string{
+// 				"app.kubernetes.io/name":       "prometheus",
+// 				"app.kubernetes.io/instance":   stack.Name,
+// 				"app.kubernetes.io/managed-by": "kube-insight-operator",
+// 			},
+// 		},
+// 		Spec: appsv1.StatefulSetSpec{
+// 			ServiceName: fmt.Sprintf("%s-prometheus", stack.Name),
+// 			Replicas:    pointer.Int32(1),
+// 			Selector: &metav1.LabelSelector{
+// 				MatchLabels: map[string]string{
+// 					"app.kubernetes.io/name":     "prometheus",
+// 					"app.kubernetes.io/instance": stack.Name,
+// 				},
+// 			},
+// 			Template: corev1.PodTemplateSpec{
+// 				ObjectMeta: metav1.ObjectMeta{
+// 					Labels: map[string]string{
+// 						"app.kubernetes.io/name":     "prometheus",
+// 						"app.kubernetes.io/instance": stack.Name,
+// 					},
+// 				},
+// 				Spec: corev1.PodSpec{
+// 					Containers: []corev1.Container{
+// 						{
+// 							Name:  "prometheus",
+// 							Image: "prom/prometheus:v2.45.0",
+// 							Ports: []corev1.ContainerPort{
+// 								{
+// 									ContainerPort: 9090,
+// 									Name:          "web",
+// 								},
+// 							},
+// 							// We'll add volume mounts and other configuration later
+// 						},
+// 					},
+// 				},
+// 			},
+// 		},
+// 	}
+
+// 	// Set controller reference for garbage collection
+// 	if err := ctrl.SetControllerReference(stack, sts, r.Scheme); err != nil {
+// 		return fmt.Errorf("failed to set controller reference: %w", err)
+// 	}
+
+// 	// Create or update the StatefulSet
+// 	err := r.Create(ctx, sts)
+// 	if err != nil && !errors.IsAlreadyExists(err) {
+// 		return fmt.Errorf("failed to create Prometheus StatefulSet: %w", err)
+// 	}
+
+// 	// Create Service for Prometheus
+// 	svc := &corev1.Service{
+// 		ObjectMeta: metav1.ObjectMeta{
+// 			Name:      fmt.Sprintf("%s-prometheus", stack.Name),
+// 			Namespace: stack.Namespace,
+// 			Labels: map[string]string{
+// 				"app.kubernetes.io/name":       "prometheus",
+// 				"app.kubernetes.io/instance":   stack.Name,
+// 				"app.kubernetes.io/managed-by": "kube-insight-operator",
+// 			},
+// 		},
+// 		Spec: corev1.ServiceSpec{
+// 			Ports: []corev1.ServicePort{
+// 				{
+// 					Name:     "web",
+// 					Port:     9090,
+// 					Protocol: corev1.ProtocolTCP,
+// 				},
+// 			},
+// 			Selector: map[string]string{
+// 				"app.kubernetes.io/name":     "prometheus",
+// 				"app.kubernetes.io/instance": stack.Name,
+// 			},
+// 		},
+// 	}
+
+// 	// Set controller reference for the service
+// 	if err := ctrl.SetControllerReference(stack, svc, r.Scheme); err != nil {
+// 		return fmt.Errorf("failed to set controller reference for service: %w", err)
+// 	}
+
+// 	// Create or update the Service
+// 	err = r.Create(ctx, svc)
+// 	if err != nil && !errors.IsAlreadyExists(err) {
+// 		return fmt.Errorf("failed to create Prometheus Service: %w", err)
+// 	}
+
+// 	return nil
+// }
+
 func (r *ObservabilityStackReconciler) reconcilePrometheus(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
-	// Create StatefulSet for Prometheus
-	sts := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-prometheus", stack.Name),
-			Namespace: stack.Namespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/name":       "prometheus",
-				"app.kubernetes.io/instance":   stack.Name,
-				"app.kubernetes.io/managed-by": "kube-insight-operator",
-			},
-		},
-		Spec: appsv1.StatefulSetSpec{
-			ServiceName: fmt.Sprintf("%s-prometheus", stack.Name),
-			Replicas:    pointer.Int32(1),
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"app.kubernetes.io/name":     "prometheus",
-					"app.kubernetes.io/instance": stack.Name,
-				},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"app.kubernetes.io/name":     "prometheus",
-						"app.kubernetes.io/instance": stack.Name,
-					},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:  "prometheus",
-							Image: "prom/prometheus:v2.45.0",
-							Ports: []corev1.ContainerPort{
-								{
-									ContainerPort: 9090,
-									Name:          "web",
-								},
-							},
-							// We'll add volume mounts and other configuration later
-						},
-					},
-				},
-			},
-		},
-	}
+    // Create StatefulSet for Prometheus
+    sts := &appsv1.StatefulSet{
+        ObjectMeta: metav1.ObjectMeta{
+            Name:      fmt.Sprintf("%s-prometheus", stack.Name),
+            Namespace: stack.Namespace,
+            Labels: map[string]string{
+                "app.kubernetes.io/name":       "prometheus",
+                "app.kubernetes.io/instance":   stack.Name,
+                "app.kubernetes.io/managed-by": "kube-insight-operator",
+            },
+        },
+        Spec: appsv1.StatefulSetSpec{
+            ServiceName: fmt.Sprintf("%s-prometheus", stack.Name),
+            Replicas:    pointer.Int32(1),
+            Selector: &metav1.LabelSelector{
+                MatchLabels: map[string]string{
+                    "app.kubernetes.io/name":     "prometheus",
+                    "app.kubernetes.io/instance": stack.Name,
+                },
+            },
+            Template: corev1.PodTemplateSpec{
+                ObjectMeta: metav1.ObjectMeta{
+                    Labels: map[string]string{
+                        "app.kubernetes.io/name":     "prometheus",
+                        "app.kubernetes.io/instance": stack.Name,
+                    },
+                },
+                Spec: corev1.PodSpec{
+                    Containers: []corev1.Container{
+                        {
+                            Name:  "prometheus",
+                            Image: "prom/prometheus:v2.45.0",
+                            Ports: []corev1.ContainerPort{
+                                {
+                                    ContainerPort: 9090,
+                                    Name:          "web",
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
 
-	// Set controller reference for garbage collection
-	if err := ctrl.SetControllerReference(stack, sts, r.Scheme); err != nil {
-		return fmt.Errorf("failed to set controller reference: %w", err)
-	}
+    // Set controller reference for garbage collection
+    if err := ctrl.SetControllerReference(stack, sts, r.Scheme); err != nil {
+        return fmt.Errorf("failed to set controller reference: %w", err)
+    }
 
-	// Create or update the StatefulSet
-	err := r.Create(ctx, sts)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create Prometheus StatefulSet: %w", err)
-	}
+    // Create or update the StatefulSet using our helper
+    if err := r.createOrUpdate(ctx, sts); err != nil {
+        return fmt.Errorf("failed to reconcile Prometheus StatefulSet: %w", err)
+    }
 
-	// Create Service for Prometheus
-	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-prometheus", stack.Name),
-			Namespace: stack.Namespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/name":       "prometheus",
-				"app.kubernetes.io/instance":   stack.Name,
-				"app.kubernetes.io/managed-by": "kube-insight-operator",
-			},
-		},
-		Spec: corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{
-				{
-					Name:     "web",
-					Port:     9090,
-					Protocol: corev1.ProtocolTCP,
-				},
-			},
-			Selector: map[string]string{
-				"app.kubernetes.io/name":     "prometheus",
-				"app.kubernetes.io/instance": stack.Name,
-			},
-		},
-	}
+    // Create Service for Prometheus
+    svc := &corev1.Service{
+        ObjectMeta: metav1.ObjectMeta{
+            Name:      fmt.Sprintf("%s-prometheus", stack.Name),
+            Namespace: stack.Namespace,
+            Labels: map[string]string{
+                "app.kubernetes.io/name":       "prometheus",
+                "app.kubernetes.io/instance":   stack.Name,
+                "app.kubernetes.io/managed-by": "kube-insight-operator",
+            },
+        },
+        Spec: corev1.ServiceSpec{
+            Ports: []corev1.ServicePort{
+                {
+                    Name:     "web",
+                    Port:     9090,
+                    Protocol: corev1.ProtocolTCP,
+                },
+            },
+            Selector: map[string]string{
+                "app.kubernetes.io/name":     "prometheus",
+                "app.kubernetes.io/instance": stack.Name,
+            },
+        },
+    }
 
-	// Set controller reference for the service
-	if err := ctrl.SetControllerReference(stack, svc, r.Scheme); err != nil {
-		return fmt.Errorf("failed to set controller reference for service: %w", err)
-	}
+    // Set controller reference for the service
+    if err := ctrl.SetControllerReference(stack, svc, r.Scheme); err != nil {
+        return fmt.Errorf("failed to set controller reference for service: %w", err)
+    }
 
-	// Create or update the Service
-	err = r.Create(ctx, svc)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create Prometheus Service: %w", err)
-	}
+    // Create or update the Service using our helper
+    if err := r.createOrUpdate(ctx, svc); err != nil {
+        return fmt.Errorf("failed to reconcile Prometheus Service: %w", err)
+    }
 
-	return nil
+    return nil
 }
 
 // reconcileGrafana handles the reconciliation of Grafana resources
@@ -192,4 +292,24 @@ func (r *ObservabilityStackReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.Service{}).
 		Complete(r)
+}
+
+
+// Helper function for creating or updating resources
+func (r *ObservabilityStackReconciler) createOrUpdate(ctx context.Context, obj client.Object) error {
+    err := r.Get(ctx, client.ObjectKeyFromObject(obj), obj.DeepCopyObject().(client.Object))
+    if err != nil {
+        if errors.IsNotFound(err) {
+            if err = r.Create(ctx, obj); err != nil {
+                return fmt.Errorf("failed to create resource: %w", err)
+            }
+            return nil
+        }
+        return fmt.Errorf("failed to get resource: %w", err)
+    }
+
+    if err = r.Update(ctx, obj); err != nil {
+        return fmt.Errorf("failed to update resource: %w", err)
+    }
+    return nil
 }

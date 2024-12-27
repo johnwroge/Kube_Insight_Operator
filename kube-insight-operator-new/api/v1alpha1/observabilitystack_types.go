@@ -22,12 +22,17 @@ import (
 
 // PrometheusSpec defines the configuration for Prometheus
 type PrometheusSpec struct {
-	// Whether Prometheus is enabled
-	Enabled bool `json:"enabled"`
-	// Storage size (e.g., "10Gi")
-	Storage string `json:"storage,omitempty"`
-	// Retention period (e.g., "15d")
-	Retention string `json:"retention,omitempty"`
+    Enabled bool `json:"enabled"`
+    Storage string `json:"storage,omitempty"`
+    Retention string `json:"retention,omitempty"`
+    // Adding node exporter configuration
+    NodeExporter struct {
+        Enabled bool `json:"enabled"`
+    } `json:"nodeExporter,omitempty"`
+    // Adding kube-state-metrics configuration
+    KubeStateMetrics struct {
+        Enabled bool `json:"enabled"`
+    } `json:"kubeStateMetrics,omitempty"`
 }
 
 // GrafanaSpec defines the configuration for Grafana
