@@ -18,17 +18,18 @@ limitations under the License.
 //+kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 
 package controller
 
 import (
 	"context"
 	"fmt"
-
 	monitoringv1alpha1 "github.com/johnwroge/kube-insight-operator/api/v1alpha1"
 	"github.com/johnwroge/kube-insight-operator/pkg/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -86,8 +87,12 @@ func (r *ObservabilityStackReconciler) Reconcile(ctx context.Context, req ctrl.R
 	return ctrl.Result{}, nil
 }
 
-
 func (r *ObservabilityStackReconciler) reconcilePrometheus(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
+
+	if err := r.reconcilePrometheusRBAC(ctx, stack); err != nil {
+		return fmt.Errorf("failed to reconcile Prometheus RBAC: %w", err)
+	}
+
 	// Define common labels
 	labels := map[string]string{
 		"app.kubernetes.io/name":       "prometheus",
@@ -135,6 +140,8 @@ func (r *ObservabilityStackReconciler) reconcilePrometheus(ctx context.Context, 
 					},
 				},
 				Spec: corev1.PodSpec{
+					ServiceAccountName:           fmt.Sprintf("%s-prometheus", stack.Name),
+					AutomountServiceAccountToken: pointer.Bool(true),
 					Containers: []corev1.Container{
 						{
 							Name:  "prometheus",
@@ -272,5 +279,139 @@ func (r *ObservabilityStackReconciler) createOrUpdate(ctx context.Context, obj c
 	if err = r.Update(ctx, obj); err != nil {
 		return fmt.Errorf("failed to update resource: %w", err)
 	}
+	return nil
+}
+
+// func (r *ObservabilityStackReconciler) reconcilePrometheusRBAC(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
+//     // Create ServiceAccount
+//     sa := &corev1.ServiceAccount{
+//         ObjectMeta: metav1.ObjectMeta{
+//             Name:      fmt.Sprintf("%s-prometheus", stack.Name),
+//             Namespace: stack.Namespace,
+//             Labels: map[string]string{
+//                 "app.kubernetes.io/name":     "prometheus",
+//                 "app.kubernetes.io/instance": stack.Name,
+//             },
+//         },
+//     }
+
+//     if err := ctrl.SetControllerReference(stack, sa, r.Scheme); err != nil {
+//         return fmt.Errorf("failed to set controller reference on serviceaccount: %w", err)
+//     }
+
+//     if err := r.createOrUpdate(ctx, sa); err != nil {
+//         return fmt.Errorf("failed to reconcile ServiceAccount: %w", err)
+//     }
+
+//     return nil
+// }
+
+func (r *ObservabilityStackReconciler) reconcilePrometheusRBAC(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
+	// Create ServiceAccount (your existing code)
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-prometheus", stack.Name),
+			Namespace: stack.Namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/name":     "prometheus",
+				"app.kubernetes.io/instance": stack.Name,
+			},
+		},
+	}
+
+	if err := ctrl.SetControllerReference(stack, sa, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference on serviceaccount: %w", err)
+	}
+
+	if err := r.createOrUpdate(ctx, sa); err != nil {
+		return fmt.Errorf("failed to reconcile ServiceAccount: %w", err)
+	}
+
+	// Create ClusterRole
+	cr := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-prometheus", stack.Name),
+			Labels: map[string]string{
+				"app.kubernetes.io/name":     "prometheus",
+				"app.kubernetes.io/instance": stack.Name,
+			},
+		},
+		// Rules: []rbacv1.PolicyRule{
+		// 	{
+		// 		APIGroups: []string{""},
+		// 		Resources: []string{
+		// 			"nodes",
+		// 			"nodes/proxy",
+		// 			"services",
+		// 			"endpoints",
+		// 			"pods",
+		// 		},
+		// 		Verbs: []string{"get", "list", "watch"},
+		// 	},
+		// 	{
+		// 		NonResourceURLs: []string{"/metrics"},
+		// 		Verbs:           []string{"get"},
+		// 	},
+		// },
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{
+					"nodes",
+					"nodes/proxy",
+					"nodes/metrics",
+					"services",
+					"endpoints",
+					"pods",
+				},
+				Verbs: []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"configmaps"},
+				Verbs:     []string{"get"},
+			},
+			{
+				NonResourceURLs: []string{
+					"/metrics",
+					"/api",
+					"/api/*",
+				},
+				Verbs: []string{"get"},
+			},
+		},
+	}
+
+	if err := r.createOrUpdate(ctx, cr); err != nil {
+		return fmt.Errorf("failed to reconcile ClusterRole: %w", err)
+	}
+
+	// Create ClusterRoleBinding
+	crb := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-prometheus", stack.Name),
+			Labels: map[string]string{
+				"app.kubernetes.io/name":     "prometheus",
+				"app.kubernetes.io/instance": stack.Name,
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     fmt.Sprintf("%s-prometheus", stack.Name),
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      fmt.Sprintf("%s-prometheus", stack.Name),
+				Namespace: stack.Namespace,
+			},
+		},
+	}
+
+	if err := r.createOrUpdate(ctx, crb); err != nil {
+		return fmt.Errorf("failed to reconcile ClusterRoleBinding: %w", err)
+	}
+
 	return nil
 }
