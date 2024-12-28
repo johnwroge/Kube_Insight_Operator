@@ -25,8 +25,8 @@ package controller
 import (
 	"context"
 	"fmt"
-	monitoringv1alpha1 "github.com/johnwroge/kube-insight-operator/api/v1alpha1"
-	"github.com/johnwroge/kube-insight-operator/pkg/prometheus"
+	monitoringv1alpha1 "github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/api/v1alpha1"
+	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
