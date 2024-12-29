@@ -13,3 +13,12 @@ spec:
       enabled: true
   grafana:
     enabled: true
+    adminPassword: "admin"
+    serviceType: "ClusterIP"
+    storage: "5Gi"
+    defaultDashboards: true
+    additionalDataSources:
+    - name: "prometheus"
+      type: "prometheus"
+      url: "http://monitoring-test-prometheus:9090"
+      isDefault: true
