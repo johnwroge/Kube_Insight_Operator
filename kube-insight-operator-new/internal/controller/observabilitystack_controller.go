@@ -630,7 +630,6 @@ func (r *ObservabilityStackReconciler) reconcileGrafana(ctx context.Context, sta
 		return fmt.Errorf("failed to reconcile Grafana ConfigMap: %w", err)
 	}
 
-
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-grafana", stack.Name),
@@ -642,10 +641,14 @@ func (r *ObservabilityStackReconciler) reconcileGrafana(ctx context.Context, sta
 				MatchLabels: labels,
 			},
 			Template: corev1.PodTemplateSpec{
+
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels,
 				},
 				Spec: corev1.PodSpec{
+					SecurityContext: &corev1.PodSecurityContext{
+						FSGroup: pointer.Int64(472),
+					},
 					InitContainers: []corev1.Container{
 						{
 							Name:  "init-chown-data",
@@ -653,7 +656,17 @@ func (r *ObservabilityStackReconciler) reconcileGrafana(ctx context.Context, sta
 							Command: []string{
 								"sh",
 								"-c",
-								"mkdir -p /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards && chown -R 472:472 /etc/grafana /var/lib/grafana",
+								"mkdir -p /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards && chown -R 472:472 /etc/grafana /var/lib/grafana || true",
+							},
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser:  pointer.Int64(0),
+								RunAsGroup: pointer.Int64(0),
+							},
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("10m"),
+									corev1.ResourceMemory: resource.MustParse("50Mi"),
+								},
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
@@ -677,6 +690,40 @@ func (r *ObservabilityStackReconciler) reconcileGrafana(ctx context.Context, sta
 									ContainerPort: 3000,
 									Protocol:      corev1.ProtocolTCP,
 								},
+							},
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("256Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("500m"),
+									corev1.ResourceMemory: resource.MustParse("512Mi"),
+								},
+							},
+							LivenessProbe: &corev1.Probe{
+								ProbeHandler: corev1.ProbeHandler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path: "/api/health",
+										Port: intstr.IntOrString{
+											IntVal: 3000,
+										},
+									},
+								},
+								InitialDelaySeconds: 30,
+								PeriodSeconds:       10,
+							},
+							ReadinessProbe: &corev1.Probe{
+								ProbeHandler: corev1.ProbeHandler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path: "/api/health",
+										Port: intstr.IntOrString{
+											IntVal: 3000,
+										},
+									},
+								},
+								InitialDelaySeconds: 15,
+								PeriodSeconds:       10,
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
