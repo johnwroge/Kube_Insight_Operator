@@ -57,10 +57,30 @@ type PrometheusSpec struct {
 
 // GrafanaSpec defines the configuration for Grafana
 type GrafanaSpec struct {
-	// Whether Grafana is enabled
-	Enabled bool `json:"enabled"`
-	// Admin password for Grafana
-	AdminPassword string `json:"adminPassword,omitempty"`
+    // Whether Grafana is enabled
+    Enabled bool `json:"enabled"`
+    // Admin password for Grafana
+    AdminPassword string `json:"adminPassword,omitempty"`
+    // Service type (LoadBalancer, ClusterIP, NodePort)
+    ServiceType string `json:"serviceType,omitempty"`
+    // Persistence configuration
+    Storage string `json:"storage,omitempty"`
+    // Default dashboards to create
+    DefaultDashboards bool `json:"defaultDashboards,omitempty"`
+    // Additional datasources to configure
+    AdditionalDataSources []GrafanaDataSource `json:"additionalDataSources,omitempty"`
+}
+
+// GrafanaDataSource defines a data source configuration
+type GrafanaDataSource struct {
+    // Name of the data source
+    Name string `json:"name"`
+    // Type of data source (prometheus, loki, tempo, etc)
+    Type string `json:"type"`
+    // URL of the data source
+    URL string `json:"url"`
+    // Whether this is the default data source
+    IsDefault bool `json:"isDefault,omitempty"`
 }
 
 // ObservabilityStackSpec defines the desired state of ObservabilityStack

@@ -19,6 +19,7 @@ limitations under the License.
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=apps,resources=deployments;statefulsets;daemonsets,verbs=get;list;watch;create;update;patch;delete
 
 package controller
 
@@ -34,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -91,6 +93,10 @@ func (r *ObservabilityStackReconciler) reconcilePrometheus(ctx context.Context, 
 
 	if err := r.reconcilePrometheusRBAC(ctx, stack); err != nil {
 		return fmt.Errorf("failed to reconcile Prometheus RBAC: %w", err)
+	}
+
+	if err := r.reconcileKubeStateMetrics(ctx, stack); err != nil {
+		return fmt.Errorf("failed to reconcile kube-state-metrics: %w", err)
 	}
 
 	// Define common labels
@@ -259,6 +265,7 @@ func (r *ObservabilityStackReconciler) SetupWithManager(mgr ctrl.Manager) error 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&monitoringv1alpha1.ObservabilityStack{}).
 		Owns(&appsv1.StatefulSet{}).
+		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Complete(r)
 }
@@ -281,30 +288,6 @@ func (r *ObservabilityStackReconciler) createOrUpdate(ctx context.Context, obj c
 	}
 	return nil
 }
-
-// func (r *ObservabilityStackReconciler) reconcilePrometheusRBAC(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
-//     // Create ServiceAccount
-//     sa := &corev1.ServiceAccount{
-//         ObjectMeta: metav1.ObjectMeta{
-//             Name:      fmt.Sprintf("%s-prometheus", stack.Name),
-//             Namespace: stack.Namespace,
-//             Labels: map[string]string{
-//                 "app.kubernetes.io/name":     "prometheus",
-//                 "app.kubernetes.io/instance": stack.Name,
-//             },
-//         },
-//     }
-
-//     if err := ctrl.SetControllerReference(stack, sa, r.Scheme); err != nil {
-//         return fmt.Errorf("failed to set controller reference on serviceaccount: %w", err)
-//     }
-
-//     if err := r.createOrUpdate(ctx, sa); err != nil {
-//         return fmt.Errorf("failed to reconcile ServiceAccount: %w", err)
-//     }
-
-//     return nil
-// }
 
 func (r *ObservabilityStackReconciler) reconcilePrometheusRBAC(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
 	// Create ServiceAccount (your existing code)
@@ -336,23 +319,7 @@ func (r *ObservabilityStackReconciler) reconcilePrometheusRBAC(ctx context.Conte
 				"app.kubernetes.io/instance": stack.Name,
 			},
 		},
-		// Rules: []rbacv1.PolicyRule{
-		// 	{
-		// 		APIGroups: []string{""},
-		// 		Resources: []string{
-		// 			"nodes",
-		// 			"nodes/proxy",
-		// 			"services",
-		// 			"endpoints",
-		// 			"pods",
-		// 		},
-		// 		Verbs: []string{"get", "list", "watch"},
-		// 	},
-		// 	{
-		// 		NonResourceURLs: []string{"/metrics"},
-		// 		Verbs:           []string{"get"},
-		// 	},
-		// },
+
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
@@ -386,7 +353,6 @@ func (r *ObservabilityStackReconciler) reconcilePrometheusRBAC(ctx context.Conte
 		return fmt.Errorf("failed to reconcile ClusterRole: %w", err)
 	}
 
-	// Create ClusterRoleBinding
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-prometheus", stack.Name),
@@ -411,6 +377,225 @@ func (r *ObservabilityStackReconciler) reconcilePrometheusRBAC(ctx context.Conte
 
 	if err := r.createOrUpdate(ctx, crb); err != nil {
 		return fmt.Errorf("failed to reconcile ClusterRoleBinding: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ObservabilityStackReconciler) reconcileKubeStateMetricsRBAC(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
+	// Skip if kube-state-metrics is not enabled
+	if !stack.Spec.Prometheus.KubeStateMetrics.Enabled {
+		return nil
+	}
+
+	// Common labels
+	labels := map[string]string{
+		"app.kubernetes.io/name":     "kube-state-metrics",
+		"app.kubernetes.io/instance": stack.Name,
+	}
+
+	// Create ServiceAccount
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-kube-state-metrics", stack.Name),
+			Namespace: stack.Namespace,
+			Labels:    labels,
+		},
+	}
+
+	if err := ctrl.SetControllerReference(stack, sa, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference on serviceaccount: %w", err)
+	}
+
+	if err := r.createOrUpdate(ctx, sa); err != nil {
+		return fmt.Errorf("failed to reconcile ServiceAccount: %w", err)
+	}
+
+	// Create ClusterRole
+	cr := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   fmt.Sprintf("%s-kube-state-metrics", stack.Name),
+			Labels: labels,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{
+					"configmaps",
+					"secrets",
+					"nodes",
+					"pods",
+					"services",
+					"resourcequotas",
+					"replicationcontrollers",
+					"limitranges",
+					"persistentvolumeclaims",
+					"persistentvolumes",
+					"namespaces",
+					"endpoints",
+				},
+				Verbs: []string{"list", "watch"},
+			},
+			{
+				APIGroups: []string{"apps"},
+				Resources: []string{
+					"statefulsets",
+					"daemonsets",
+					"deployments",
+					"replicasets",
+				},
+				Verbs: []string{"list", "watch"},
+			},
+			{
+				APIGroups: []string{"batch"},
+				Resources: []string{
+					"cronjobs",
+					"jobs",
+				},
+				Verbs: []string{"list", "watch"},
+			},
+			{
+				APIGroups: []string{"networking.k8s.io"},
+				Resources: []string{
+					"ingresses",
+				},
+				Verbs: []string{"list", "watch"},
+			},
+			{
+				APIGroups: []string{"storage.k8s.io"},
+				Resources: []string{
+					"storageclasses",
+				},
+				Verbs: []string{"list", "watch"},
+			},
+		},
+	}
+
+	if err := r.createOrUpdate(ctx, cr); err != nil {
+		return fmt.Errorf("failed to reconcile ClusterRole: %w", err)
+	}
+
+	// Create ClusterRoleBinding
+	crb := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   fmt.Sprintf("%s-kube-state-metrics", stack.Name),
+			Labels: labels,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     cr.Name,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      sa.Name,
+				Namespace: sa.Namespace,
+			},
+		},
+	}
+
+	if err := r.createOrUpdate(ctx, crb); err != nil {
+		return fmt.Errorf("failed to reconcile ClusterRoleBinding: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ObservabilityStackReconciler) reconcileKubeStateMetrics(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
+	if !stack.Spec.Prometheus.KubeStateMetrics.Enabled {
+		return nil
+	}
+
+	if err := r.reconcileKubeStateMetricsRBAC(ctx, stack); err != nil {
+		return fmt.Errorf("failed to reconcile kube-state-metrics RBAC: %w", err)
+	}
+
+	labels := map[string]string{
+		"app.kubernetes.io/name":     "kube-state-metrics",
+		"app.kubernetes.io/instance": stack.Name,
+	}
+
+	// Create deployment
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-kube-state-metrics", stack.Name),
+			Namespace: stack.Namespace,
+			Labels:    labels,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
+				Spec: corev1.PodSpec{
+					ServiceAccountName: fmt.Sprintf("%s-kube-state-metrics", stack.Name),
+					Containers: []corev1.Container{
+						{
+							Name:  "kube-state-metrics",
+							Image: "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.10.0",
+							Ports: []corev1.ContainerPort{
+								{
+									Name:          "http-metrics",
+									ContainerPort: 8080,
+								},
+								{
+									Name:          "telemetry",
+									ContainerPort: 8081,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Set controller reference
+	if err := ctrl.SetControllerReference(stack, deployment, r.Scheme); err != nil {
+		return err
+	}
+
+	// Create or update deployment
+	if err := r.createOrUpdate(ctx, deployment); err != nil {
+		return err
+	}
+
+	// Create service
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-kube-state-metrics", stack.Name),
+			Namespace: stack.Namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "http-metrics",
+					Port:       8080,
+					TargetPort: intstr.FromString("http-metrics"),
+				},
+				{
+					Name:       "telemetry",
+					Port:       8081,
+					TargetPort: intstr.FromString("telemetry"),
+				},
+			},
+			Selector: labels,
+		},
+	}
+
+	// Set controller reference
+	if err := ctrl.SetControllerReference(stack, service, r.Scheme); err != nil {
+		return err
+	}
+
+	// Create or update service
+	if err := r.createOrUpdate(ctx, service); err != nil {
+		return err
 	}
 
 	return nil
