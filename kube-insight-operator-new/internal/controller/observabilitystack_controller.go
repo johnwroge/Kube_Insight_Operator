@@ -21,12 +21,20 @@ limitations under the License.
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=deployments;statefulsets;daemonsets,verbs=get;list;watch;create;update;patch;delete
 
+//+kubebuilder:rbac:groups=monitoring.example.com,resources=observabilitystacks,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=monitoring.example.com,resources=observabilitystacks/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=monitoring.example.com,resources=observabilitystacks/finalizers,verbs=update
+//+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
+
 package controller
 
 import (
 	"context"
 	"fmt"
+
 	monitoringv1alpha1 "github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/api/v1alpha1"
+	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/grafana"
 	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -47,12 +55,6 @@ type ObservabilityStackReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
-
-//+kubebuilder:rbac:groups=monitoring.example.com,resources=observabilitystacks,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=monitoring.example.com,resources=observabilitystacks/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=monitoring.example.com,resources=observabilitystacks/finalizers,verbs=update
-//+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile handles the main reconciliation loop for ObservabilityStack
 func (r *ObservabilityStackReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -251,12 +253,6 @@ func (r *ObservabilityStackReconciler) reconcilePrometheus(ctx context.Context, 
 		return fmt.Errorf("failed to reconcile Prometheus Service: %w", err)
 	}
 
-	return nil
-}
-
-// reconcileGrafana handles the reconciliation of Grafana resources
-func (r *ObservabilityStackReconciler) reconcileGrafana(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
-	// TODO: Implement Grafana reconciliation
 	return nil
 }
 
@@ -596,6 +592,198 @@ func (r *ObservabilityStackReconciler) reconcileKubeStateMetrics(ctx context.Con
 	// Create or update service
 	if err := r.createOrUpdate(ctx, service); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (r *ObservabilityStackReconciler) reconcileGrafana(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
+	if !stack.Spec.Grafana.Enabled {
+		return nil
+	}
+
+	labels := map[string]string{
+		"app.kubernetes.io/name":       "grafana",
+		"app.kubernetes.io/instance":   stack.Name,
+		"app.kubernetes.io/managed-by": "kube-insight-operator",
+	}
+
+	// Create Grafana instance
+	grafanaOpts := grafana.Options{
+		Name:          fmt.Sprintf("%s-grafana", stack.Name),
+		Namespace:     stack.Namespace,
+		Labels:        labels,
+		AdminPassword: stack.Spec.Grafana.AdminPassword,
+		Storage:       stack.Spec.Grafana.Storage,
+		PrometheusURL: fmt.Sprintf("http://%s-prometheus:9090", stack.Name),
+	}
+
+	g := grafana.New(grafanaOpts)
+
+	// Create ConfigMap
+	configMap := g.GenerateConfigMap()
+	if err := ctrl.SetControllerReference(stack, configMap, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference on configmap: %w", err)
+	}
+
+	if err := r.createOrUpdate(ctx, configMap); err != nil {
+		return fmt.Errorf("failed to reconcile Grafana ConfigMap: %w", err)
+	}
+
+
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-grafana", stack.Name),
+			Namespace: stack.Namespace,
+			Labels:    labels,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{
+						{
+							Name:  "init-chown-data",
+							Image: "busybox:1.35",
+							Command: []string{
+								"sh",
+								"-c",
+								"mkdir -p /etc/grafana/provisioning/datasources /etc/grafana/provisioning/dashboards && chown -R 472:472 /etc/grafana /var/lib/grafana",
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "config",
+									MountPath: "/etc/grafana",
+								},
+								{
+									Name:      "storage",
+									MountPath: "/var/lib/grafana",
+								},
+							},
+						},
+					},
+					Containers: []corev1.Container{
+						{
+							Name:  "grafana",
+							Image: "grafana/grafana:9.5.3",
+							Ports: []corev1.ContainerPort{
+								{
+									Name:          "http",
+									ContainerPort: 3000,
+									Protocol:      corev1.ProtocolTCP,
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "config",
+									MountPath: "/etc/grafana/grafana.ini",
+									SubPath:   "grafana.ini",
+								},
+								{
+									Name:      "config",
+									MountPath: "/etc/grafana/provisioning/datasources/datasources.yaml",
+									SubPath:   "datasources.yaml",
+								},
+								{
+									Name:      "storage",
+									MountPath: "/var/lib/grafana",
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "config",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: configMap.Name,
+									},
+								},
+							},
+						},
+						{
+							Name: "storage",
+							VolumeSource: corev1.VolumeSource{
+								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+									ClaimName: fmt.Sprintf("%s-grafana", stack.Name),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if err := ctrl.SetControllerReference(stack, deployment, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference on deployment: %w", err)
+	}
+
+	if err := r.createOrUpdate(ctx, deployment); err != nil {
+		return fmt.Errorf("failed to reconcile Grafana Deployment: %w", err)
+	}
+
+	// Create Service
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-grafana", stack.Name),
+			Namespace: stack.Namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{
+					Name:     "http",
+					Port:     3000,
+					Protocol: corev1.ProtocolTCP,
+				},
+			},
+			Selector: labels,
+		},
+	}
+
+	if err := ctrl.SetControllerReference(stack, svc, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference on service: %w", err)
+	}
+
+	if err := r.createOrUpdate(ctx, svc); err != nil {
+		return fmt.Errorf("failed to reconcile Grafana Service: %w", err)
+	}
+
+	// Create PVC for Grafana storage
+	if stack.Spec.Grafana.Storage != "" {
+		pvc := &corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("%s-grafana", stack.Name),
+				Namespace: stack.Namespace,
+				Labels:    labels,
+			},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes: []corev1.PersistentVolumeAccessMode{
+					corev1.ReadWriteOnce,
+				},
+				StorageClassName: pointer.String("standard"),
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: resource.MustParse(stack.Spec.Grafana.Storage),
+					},
+				},
+			},
+		}
+
+		if err := ctrl.SetControllerReference(stack, pvc, r.Scheme); err != nil {
+			return fmt.Errorf("failed to set controller reference on pvc: %w", err)
+		}
+
+		if err := r.createOrUpdate(ctx, pvc); err != nil {
+			return fmt.Errorf("failed to reconcile Grafana PVC: %w", err)
+		}
 	}
 
 	return nil

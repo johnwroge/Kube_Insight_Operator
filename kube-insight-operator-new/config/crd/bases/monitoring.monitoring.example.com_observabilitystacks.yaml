@@ -43,12 +43,45 @@ spec:
               grafana:
                 description: Grafana configuration
                 properties:
+                  additionalDataSources:
+                    description: Additional datasources to configure
+                    items:
+                      description: GrafanaDataSource defines a data source configuration
+                      properties:
+                        isDefault:
+                          description: Whether this is the default data source
+                          type: boolean
+                        name:
+                          description: Name of the data source
+                          type: string
+                        type:
+                          description: Type of data source (prometheus, loki, tempo,
+                            etc)
+                          type: string
+                        url:
+                          description: URL of the data source
+                          type: string
+                      required:
+                      - name
+                      - type
+                      - url
+                      type: object
+                    type: array
                   adminPassword:
                     description: Admin password for Grafana
                     type: string
+                  defaultDashboards:
+                    description: Default dashboards to create
+                    type: boolean
                   enabled:
                     description: Whether Grafana is enabled
                     type: boolean
+                  serviceType:
+                    description: Service type (LoadBalancer, ClusterIP, NodePort)
+                    type: string
+                  storage:
+                    description: Persistence configuration
+                    type: string
                 required:
                 - enabled
                 type: object
