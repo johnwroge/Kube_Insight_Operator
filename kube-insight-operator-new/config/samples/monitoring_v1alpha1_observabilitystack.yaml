@@ -1,5 +1,4 @@
-# apiVersion: monitoring.monitoring.example.com/v1alpha1
-apiVersion: monitoring.example.com/v1alpha1
+apiVersion: monitoring.monitoring.example.com/v1alpha1
 kind: ObservabilityStack
 metadata:
   name: monitoring-test
