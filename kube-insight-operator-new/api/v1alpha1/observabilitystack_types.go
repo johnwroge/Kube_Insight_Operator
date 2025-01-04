@@ -46,13 +46,29 @@ type KubeStateMetricsSpec struct {
 }
 
 // PrometheusSpec defines the configuration for Prometheus
+// type PrometheusSpec struct {
+// 	Enabled   bool   `json:"enabled"`
+// 	Storage   string `json:"storage,omitempty"`
+// 	Retention string `json:"retention,omitempty"`
+// 	// Using named types instead of anonymous structs
+// 	NodeExporter     NodeExporterSpec     `json:"nodeExporter,omitempty"`
+// 	KubeStateMetrics KubeStateMetricsSpec `json:"kubeStateMetrics,omitempty"`
+// }
 type PrometheusSpec struct {
-	Enabled   bool   `json:"enabled"`
-	Storage   string `json:"storage,omitempty"`
-	Retention string `json:"retention,omitempty"`
-	// Using named types instead of anonymous structs
-	NodeExporter     NodeExporterSpec     `json:"nodeExporter,omitempty"`
-	KubeStateMetrics KubeStateMetricsSpec `json:"kubeStateMetrics,omitempty"`
+    // +kubebuilder:validation:Optional
+    // +kubebuilder:default=false
+    Enabled bool `json:"enabled"`
+    
+    // +kubebuilder:validation:Optional
+    // +kubebuilder:validation:Pattern=`^[0-9]+[GM]i$`
+    Storage string `json:"storage,omitempty"`
+    
+    // +kubebuilder:validation:Optional
+    // +kubebuilder:validation:Pattern=`^[0-9]+[hdw]$`
+    Retention string `json:"retention,omitempty"`
+    
+    NodeExporter     NodeExporterSpec     `json:"nodeExporter,omitempty"`
+    KubeStateMetrics KubeStateMetricsSpec `json:"kubeStateMetrics,omitempty"`
 }
 
 // GrafanaSpec defines the configuration for Grafana
@@ -63,8 +79,9 @@ type GrafanaSpec struct {
 	AdminPassword string `json:"adminPassword,omitempty"`
 	// Service type (LoadBalancer, ClusterIP, NodePort)
 	ServiceType string `json:"serviceType,omitempty"`
-	// Persistence configuration
-	Storage string `json:"storage,omitempty"`
+	// +kubebuilder:validation:Optional
+    // +kubebuilder:validation:Pattern=`^[0-9]+[GM]i$`
+    Storage string `json:"storage,omitempty"`
 	// Default dashboards to create
 	DefaultDashboards bool `json:"defaultDashboards,omitempty"`
 	// Additional datasources to configure
@@ -73,14 +90,19 @@ type GrafanaSpec struct {
 
 // GrafanaDataSource defines a data source configuration
 type GrafanaDataSource struct {
-	// Name of the data source
-	Name string `json:"name"`
-	// Type of data source (prometheus, loki, tempo, etc)
-	Type string `json:"type"`
-	// URL of the data source
-	URL string `json:"url"`
-	// Whether this is the default data source
-	IsDefault bool `json:"isDefault,omitempty"`
+    // +kubebuilder:validation:Required
+    Name string `json:"name"`
+    
+    // +kubebuilder:validation:Required
+    // +kubebuilder:validation:Enum=prometheus;loki;tempo
+    Type string `json:"type"`
+    
+    // +kubebuilder:validation:Required
+    // +kubebuilder:validation:Pattern=`^https?://.*`
+    URL string `json:"url"`
+    
+    // +kubebuilder:validation:Optional
+    IsDefault bool `json:"isDefault,omitempty"`
 }
 
 // ObservabilityStackSpec defines the desired state of ObservabilityStack
@@ -89,12 +111,30 @@ type ObservabilityStackSpec struct {
 	Prometheus PrometheusSpec `json:"prometheus,omitempty"`
 	// Grafana configuration
 	Grafana GrafanaSpec `json:"grafana,omitempty"`
+
+	// +kubebuilder:validation:Optional
+    Loki LokiSpec `json:"loki,omitempty"`
 }
 
 // ObservabilityStackStatus defines the observed state of ObservabilityStack
 type ObservabilityStackStatus struct {
 	// Conditions represent the latest available observations
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+type LokiSpec struct {
+    // +kubebuilder:validation:Optional
+    // +kubebuilder:default=false
+    Enabled bool `json:"enabled"`
+
+    // +kubebuilder:validation:Optional
+    // +kubebuilder:default="10Gi"
+    Storage string `json:"storage,omitempty"`
+
+    // +kubebuilder:validation:Optional
+    // +kubebuilder:default=14
+    // +kubebuilder:validation:Minimum=1
+    RetentionDays int32 `json:"retentionDays,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -117,6 +157,9 @@ type ObservabilityStackList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ObservabilityStack `json:"items"`
 }
+
+
+
 
 func init() {
 	SchemeBuilder.Register(&ObservabilityStack{}, &ObservabilityStackList{})

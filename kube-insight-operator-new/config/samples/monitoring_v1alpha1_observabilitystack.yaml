@@ -1,4 +1,5 @@
-apiVersion: monitoring.monitoring.example.com/v1alpha1
+# apiVersion: monitoring.monitoring.example.com/v1alpha1
+apiVersion: monitoring.example.com/v1alpha1
 kind: ObservabilityStack
 metadata:
   name: monitoring-test
@@ -22,3 +23,7 @@ spec:
       type: "prometheus"
       url: "http://monitoring-test-prometheus:9090"
       isDefault: true
+  loki:
+    enabled: true
+    storage: "10Gi"
+    retentionDays: 15

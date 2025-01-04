@@ -36,6 +36,7 @@ import (
 	monitoringv1alpha1 "github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/api/v1alpha1"
 	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/grafana"
 	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/prometheus"
+	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/loki"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -834,4 +835,199 @@ func (r *ObservabilityStackReconciler) reconcileGrafana(ctx context.Context, sta
 	}
 
 	return nil
+}
+
+func (r *ObservabilityStackReconciler) reconcileLoki(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
+    if !stack.Spec.Loki.Enabled {
+        return nil
+    }
+
+    // Define common labels
+    labels := map[string]string{
+        "app.kubernetes.io/name":       "loki",
+        "app.kubernetes.io/instance":   stack.Name,
+        "app.kubernetes.io/managed-by": "kube-insight-operator",
+    }
+
+    // Create ConfigMap
+    configGen := loki.NewConfigGenerator(loki.Options{
+        Name:          fmt.Sprintf("%s-loki", stack.Name),
+        Namespace:     stack.Namespace,
+        Labels:        labels,
+        Storage:       stack.Spec.Loki.Storage,
+        RetentionDays: stack.Spec.Loki.RetentionDays,
+    })
+
+    configMap := configGen.GenerateConfigMap()
+    if err := ctrl.SetControllerReference(stack, configMap, r.Scheme); err != nil {
+        return fmt.Errorf("failed to set controller reference on configmap: %w", err)
+    }
+
+    if err := r.createOrUpdate(ctx, configMap); err != nil {
+        return fmt.Errorf("failed to reconcile Loki ConfigMap: %w", err)
+    }
+
+    // Create StatefulSet
+    sts := &appsv1.StatefulSet{
+        ObjectMeta: metav1.ObjectMeta{
+            Name:      fmt.Sprintf("%s-loki", stack.Name),
+            Namespace: stack.Namespace,
+            Labels:    labels,
+        },
+        Spec: appsv1.StatefulSetSpec{
+            ServiceName: fmt.Sprintf("%s-loki", stack.Name),
+            Replicas:    pointer.Int32(1),
+            Selector: &metav1.LabelSelector{
+                MatchLabels: labels,
+            },
+            Template: corev1.PodTemplateSpec{
+                ObjectMeta: metav1.ObjectMeta{
+                    Labels: labels,
+                },
+                Spec: corev1.PodSpec{
+                    SecurityContext: &corev1.PodSecurityContext{
+                        FSGroup: pointer.Int64(10001),
+                    },
+                    Containers: []corev1.Container{
+                        {
+                            Name:  "loki",
+                            Image: "grafana/loki:2.8.4",
+                            Args: []string{
+                                "-config.file=/etc/loki/loki.yaml",
+                            },
+                            Ports: []corev1.ContainerPort{
+                                {
+                                    Name:          "http",
+                                    ContainerPort: 3100,
+                                    Protocol:      corev1.ProtocolTCP,
+                                },
+                                {
+                                    Name:          "grpc",
+                                    ContainerPort: 9096,
+                                    Protocol:      corev1.ProtocolTCP,
+                                },
+                            },
+                            VolumeMounts: []corev1.VolumeMount{
+                                {
+                                    Name:      "config",
+                                    MountPath: "/etc/loki",
+                                },
+                                {
+                                    Name:      "storage",
+                                    MountPath: "/loki",
+                                },
+                            },
+                            Env: []corev1.EnvVar{
+                                {
+                                    Name:  "RETENTION_DAYS",
+                                    Value: fmt.Sprintf("%d", stack.Spec.Loki.RetentionDays),
+                                },
+                            },
+                            Resources: corev1.ResourceRequirements{
+                                Requests: corev1.ResourceList{
+                                    corev1.ResourceCPU:    resource.MustParse("100m"),
+                                    corev1.ResourceMemory: resource.MustParse("128Mi"),
+                                },
+                                Limits: corev1.ResourceList{
+                                    corev1.ResourceCPU:    resource.MustParse("1"),
+                                    corev1.ResourceMemory: resource.MustParse("1Gi"),
+                                },
+                            },
+                            LivenessProbe: &corev1.Probe{
+                                ProbeHandler: corev1.ProbeHandler{
+                                    HTTPGet: &corev1.HTTPGetAction{
+                                        Path: "/ready",
+                                        Port: intstr.FromInt(3100),
+                                    },
+                                },
+                                InitialDelaySeconds: 45,
+                            },
+                            ReadinessProbe: &corev1.Probe{
+                                ProbeHandler: corev1.ProbeHandler{
+                                    HTTPGet: &corev1.HTTPGetAction{
+                                        Path: "/ready",
+                                        Port: intstr.FromInt(3100),
+                                    },
+                                },
+                                InitialDelaySeconds: 45,
+                            },
+                        },
+                    },
+                    Volumes: []corev1.Volume{
+                        {
+                            Name: "config",
+                            VolumeSource: corev1.VolumeSource{
+                                ConfigMap: &corev1.ConfigMapVolumeSource{
+                                    LocalObjectReference: corev1.LocalObjectReference{
+                                        Name: configMap.Name,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
+                {
+                    ObjectMeta: metav1.ObjectMeta{
+                        Name: "storage",
+                    },
+                    Spec: corev1.PersistentVolumeClaimSpec{
+                        AccessModes: []corev1.PersistentVolumeAccessMode{
+                            corev1.ReadWriteOnce,
+                        },
+                        Resources: corev1.VolumeResourceRequirements{
+                            Requests: corev1.ResourceList{
+                                corev1.ResourceStorage: resource.MustParse(stack.Spec.Loki.Storage),
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+
+    if err := ctrl.SetControllerReference(stack, sts, r.Scheme); err != nil {
+        return fmt.Errorf("failed to set controller reference on statefulset: %w", err)
+    }
+
+    if err := r.createOrUpdate(ctx, sts); err != nil {
+        return fmt.Errorf("failed to reconcile Loki StatefulSet: %w", err)
+    }
+
+    // Create Service
+    svc := &corev1.Service{
+        ObjectMeta: metav1.ObjectMeta{
+            Name:      fmt.Sprintf("%s-loki", stack.Name),
+            Namespace: stack.Namespace,
+            Labels:    labels,
+        },
+        Spec: corev1.ServiceSpec{
+            Ports: []corev1.ServicePort{
+                {
+                    Name:       "http",
+                    Port:       3100,
+                    Protocol:   corev1.ProtocolTCP,
+                    TargetPort: intstr.FromString("http"),
+                },
+                {
+                    Name:       "grpc",
+                    Port:       9096,
+                    Protocol:   corev1.ProtocolTCP,
+                    TargetPort: intstr.FromString("grpc"),
+                },
+            },
+            Selector: labels,
+        },
+    }
+
+    if err := ctrl.SetControllerReference(stack, svc, r.Scheme); err != nil {
+        return fmt.Errorf("failed to set controller reference on service: %w", err)
+    }
+
+    if err := r.createOrUpdate(ctx, svc); err != nil {
+        return fmt.Errorf("failed to reconcile Loki Service: %w", err)
+    }
+
+    return nil
 }
