@@ -10,7 +10,7 @@ func (g *ConfigGenerator) GenerateConfigMap() *corev1.ConfigMap {
 	// Convert retention days to hours
 	retentionPeriod := fmt.Sprintf("%dh", g.options.RetentionDays*24)
 
-	tempoConfig := `
+tempoConfig := `
 server:
   http_listen_port: 3200
 
@@ -32,6 +32,7 @@ distributor:
 ingester:
   max_block_duration: 5m
   trace_idle_period: 10s
+  max_block_bytes: 100_000_000  # Optional: limit block size
 
 compactor:
   compaction:
@@ -44,6 +45,17 @@ storage:
       path: /var/tempo/traces
     wal:
       path: /var/tempo/wal
+
+metrics_generator:
+  storage:
+    path: /var/tempo/metrics
+  processor:
+    service_graphs:
+      wait: 10s
+    span_metrics:
+      dimensions:
+        - service.name
+        - span.kind
 
 overrides:
   defaults:
