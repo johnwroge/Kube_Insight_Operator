@@ -42,6 +42,7 @@ import (
 	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/loki"
 	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/prometheus"
 	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/promtail"
+	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/tempo"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -105,6 +106,13 @@ func (r *ObservabilityStackReconciler) Reconcile(ctx context.Context, req ctrl.R
 	if stack.Spec.Promtail.Enabled {
 		if err := r.reconcilePromtail(ctx, stack); err != nil {
 			log.Error(err, "Failed to reconcile Promtail")
+			return ctrl.Result{}, err
+		}
+	}
+
+	if stack.Spec.Tempo.Enabled {
+		if err := r.reconcileTempo(ctx, stack); err != nil {
+			log.Error(err, "Failed to reconcile Tempo")
 			return ctrl.Result{}, err
 		}
 	}
@@ -1221,6 +1229,82 @@ func (r *ObservabilityStackReconciler) reconcileLoki(ctx context.Context, stack 
 
 	if err := r.createOrUpdate(ctx, svc); err != nil {
 		return fmt.Errorf("failed to reconcile Loki Service: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ObservabilityStackReconciler) reconcileTempo(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
+	if !stack.Spec.Tempo.Enabled {
+		return nil
+	}
+
+	// Define common labels
+	labels := map[string]string{
+		"app.kubernetes.io/name":       "tempo",
+		"app.kubernetes.io/instance":   stack.Name,
+		"app.kubernetes.io/managed-by": "kube-insight-operator",
+	}
+
+	// Convert resource requirements or use defaults
+	resources := &corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("1"),
+			corev1.ResourceMemory: resource.MustParse("2Gi"),
+		},
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("200m"),
+			corev1.ResourceMemory: resource.MustParse("512Mi"),
+		},
+	}
+
+	if stack.Spec.Tempo.Resources.CPULimit != "" {
+		resources.Limits[corev1.ResourceCPU] = resource.MustParse(stack.Spec.Tempo.Resources.CPULimit)
+		resources.Limits[corev1.ResourceMemory] = resource.MustParse(stack.Spec.Tempo.Resources.MemoryLimit)
+		resources.Requests[corev1.ResourceCPU] = resource.MustParse(stack.Spec.Tempo.Resources.CPURequest)
+		resources.Requests[corev1.ResourceMemory] = resource.MustParse(stack.Spec.Tempo.Resources.MemoryRequest)
+	}
+
+	// Create Tempo instance
+	tempoOpts := tempo.Options{
+		Name:          fmt.Sprintf("%s-tempo", stack.Name),
+		Namespace:     stack.Namespace,
+		Labels:        labels,
+		Storage:       stack.Spec.Tempo.Storage,
+		RetentionDays: stack.Spec.Tempo.RetentionDays,
+		Resources:     resources,
+	}
+
+	generator := tempo.NewConfigGenerator(tempoOpts)
+
+	// Generate and create ConfigMap
+	configMap := generator.GenerateConfigMap()
+	if err := ctrl.SetControllerReference(stack, configMap, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference on configmap: %w", err)
+	}
+
+	if err := r.createOrUpdate(ctx, configMap); err != nil {
+		return fmt.Errorf("failed to reconcile Tempo ConfigMap: %w", err)
+	}
+
+	// Generate and create StatefulSet
+	sts := generator.GenerateStatefulSet()
+	if err := ctrl.SetControllerReference(stack, sts, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference on statefulset: %w", err)
+	}
+
+	if err := r.createOrUpdate(ctx, sts); err != nil {
+		return fmt.Errorf("failed to reconcile Tempo StatefulSet: %w", err)
+	}
+
+	// Generate and create Service
+	svc := generator.GenerateService()
+	if err := ctrl.SetControllerReference(stack, svc, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference on service: %w", err)
+	}
+
+	if err := r.createOrUpdate(ctx, svc); err != nil {
+		return fmt.Errorf("failed to reconcile Tempo Service: %w", err)
 	}
 
 	return nil

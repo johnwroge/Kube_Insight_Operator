@@ -41,7 +41,7 @@ spec:
             description: ObservabilityStackSpec defines the desired state of ObservabilityStack
             properties:
               grafana:
-                description: Grafana configuration
+                description: GrafanaSpec defines the configuration for Grafana
                 properties:
                   additionalDataSources:
                     description: Additional datasources to configure
@@ -100,7 +100,6 @@ spec:
                     type: string
                 type: object
               prometheus:
-                description: Prometheus configuration
                 properties:
                   enabled:
                     default: false
@@ -194,6 +193,35 @@ spec:
                           type: string
                       type: object
                     type: array
+                type: object
+              tempo:
+                properties:
+                  enabled:
+                    default: false
+                    type: boolean
+                  resources:
+                    properties:
+                      cpuLimit:
+                        default: 200m
+                        type: string
+                      cpuRequest:
+                        default: 100m
+                        type: string
+                      memoryLimit:
+                        default: 256Mi
+                        type: string
+                      memoryRequest:
+                        default: 128Mi
+                        type: string
+                    type: object
+                  retentionDays:
+                    default: 7
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  storage:
+                    pattern: ^[0-9]+[GM]i$
+                    type: string
                 type: object
             type: object
           status:

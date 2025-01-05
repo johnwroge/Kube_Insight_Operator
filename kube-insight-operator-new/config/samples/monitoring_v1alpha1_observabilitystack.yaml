@@ -36,4 +36,13 @@ spec:
     scrapeKubernetesLogs: true
     extraArgs:
       - "-client.external-labels=cluster=prod"
+  tempo:
+    enabled: true
+    storage: "10Gi"
+    retentionDays: 7
+    resources:
+      cpuRequest: "200m"
+      memoryRequest: "512Mi"
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
   

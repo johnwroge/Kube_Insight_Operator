@@ -123,15 +123,12 @@ type PromtailSpec struct {
 
 // ObservabilityStackSpec defines the desired state of ObservabilityStack
 type ObservabilityStackSpec struct {
-	// Prometheus configuration
 	Prometheus PrometheusSpec `json:"prometheus,omitempty"`
-	// Grafana configuration
-	Grafana GrafanaSpec `json:"grafana,omitempty"`
-
+	Grafana    GrafanaSpec    `json:"grafana,omitempty"`
 	// +kubebuilder:validation:Optional
-	Loki LokiSpec `json:"loki,omitempty"`
-
+	Loki     LokiSpec     `json:"loki,omitempty"`
 	Promtail PromtailSpec `json:"promtail,omitempty"`
+	Tempo    TempoSpec    `json:"tempo,omitempty"`
 }
 
 // ObservabilityStackStatus defines the observed state of ObservabilityStack
@@ -153,6 +150,24 @@ type LokiSpec struct {
 	// +kubebuilder:default=14
 	// +kubebuilder:validation:Minimum=1
 	RetentionDays int32 `json:"retentionDays,omitempty"`
+}
+
+type TempoSpec struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
+	Enabled bool `json:"enabled"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Pattern=`^[0-9]+[GM]i$`
+	Storage string `json:"storage,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=7
+	// +kubebuilder:validation:Minimum=1
+	RetentionDays int32 `json:"retentionDays,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Resources ResourceRequirements `json:"resources,omitempty"`
 }
 
 //+kubebuilder:object:root=true
