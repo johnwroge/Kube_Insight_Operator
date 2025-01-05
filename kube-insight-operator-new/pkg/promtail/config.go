@@ -1,24 +1,24 @@
 package promtail
 
 import (
-    "fmt"
-    corev1 "k8s.io/api/core/v1"
-    metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-    "k8s.io/apimachinery/pkg/util/intstr"
+	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type ConfigGenerator struct {
-    options Options
+	options Options
 }
 
 func NewConfigGenerator(opts Options) *ConfigGenerator {
-    return &ConfigGenerator{
-        options: opts,
-    }
+	return &ConfigGenerator{
+		options: opts,
+	}
 }
 
 func (g *ConfigGenerator) GenerateConfigMap() *corev1.ConfigMap {
-    promtailConfig := fmt.Sprintf(`
+	promtailConfig := fmt.Sprintf(`
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
@@ -91,36 +91,36 @@ scrape_configs:
           - __meta_kubernetes_pod_container_name
         target_label: __path__`, g.options.LokiURL)
 
-    return &corev1.ConfigMap{
-        ObjectMeta: metav1.ObjectMeta{
-            Name:      g.options.Name + "-config",
-            Namespace: g.options.Namespace,
-            Labels:    g.options.Labels,
-        },
-        Data: map[string]string{
-            "promtail.yaml": promtailConfig,
-        },
-    }
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      g.options.Name + "-config",
+			Namespace: g.options.Namespace,
+			Labels:    g.options.Labels,
+		},
+		Data: map[string]string{
+			"promtail.yaml": promtailConfig,
+		},
+	}
 }
 
 // GenerateService creates a Service for Promtail
 func (g *ConfigGenerator) GenerateService() *corev1.Service {
-    return &corev1.Service{
-        ObjectMeta: metav1.ObjectMeta{
-            Name:      g.options.Name,
-            Namespace: g.options.Namespace,
-            Labels:    g.options.Labels,
-        },
-        Spec: corev1.ServiceSpec{
-            Ports: []corev1.ServicePort{
-                {
-                    Name:       "http-metrics",
-                    Port:       9080,
-                    TargetPort: intstr.FromInt(9080),
-                    Protocol:   corev1.ProtocolTCP,
-                },
-            },
-            Selector: g.options.Labels,
-        },
-    }
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      g.options.Name,
+			Namespace: g.options.Namespace,
+			Labels:    g.options.Labels,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "http-metrics",
+					Port:       9080,
+					TargetPort: intstr.FromInt(9080),
+					Protocol:   corev1.ProtocolTCP,
+				},
+			},
+			Selector: g.options.Labels,
+		},
+	}
 }

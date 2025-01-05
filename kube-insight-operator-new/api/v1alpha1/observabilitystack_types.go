@@ -17,23 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// PrometheusSpec defines the configuration for Prometheus
-// type PrometheusSpec struct {
-//     Enabled bool `json:"enabled"`
-//     Storage string `json:"storage,omitempty"`
-//     Retention string `json:"retention,omitempty"`
-//     // Adding node exporter configuration
-//     NodeExporter struct {
-//         Enabled bool `json:"enabled"`
-//     } `json:"nodeExporter,omitempty"`
-//     // Adding kube-state-metrics configuration
-//     KubeStateMetrics struct {
-//         Enabled bool `json:"enabled"`
-//     } `json:"kubeStateMetrics,omitempty"`
-// }
 
 // NodeExporterSpec defines the configuration for node-exporter
 type NodeExporterSpec struct {
@@ -46,15 +32,7 @@ type KubeStateMetricsSpec struct {
 }
 
 // PrometheusSpec defines the configuration for Prometheus
-//
-//	type PrometheusSpec struct {
-//		Enabled   bool   `json:"enabled"`
-//		Storage   string `json:"storage,omitempty"`
-//		Retention string `json:"retention,omitempty"`
-//		// Using named types instead of anonymous structs
-//		NodeExporter     NodeExporterSpec     `json:"nodeExporter,omitempty"`
-//		KubeStateMetrics KubeStateMetricsSpec `json:"kubeStateMetrics,omitempty"`
-//	}
+
 type PrometheusSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
@@ -107,40 +85,40 @@ type GrafanaDataSource struct {
 }
 
 type ResourceRequirements struct {
-    // +kubebuilder:validation:Optional
-    // +kubebuilder:default="100m"
-    CPURequest string `json:"cpuRequest,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="100m"
+	CPURequest string `json:"cpuRequest,omitempty"`
 
-    // +kubebuilder:validation:Optional
-    // +kubebuilder:default="128Mi"
-    MemoryRequest string `json:"memoryRequest,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="128Mi"
+	MemoryRequest string `json:"memoryRequest,omitempty"`
 
-    // +kubebuilder:validation:Optional
-    // +kubebuilder:default="200m"
-    CPULimit string `json:"cpuLimit,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="200m"
+	CPULimit string `json:"cpuLimit,omitempty"`
 
-    // +kubebuilder:validation:Optional
-    // +kubebuilder:default="256Mi"
-    MemoryLimit string `json:"memoryLimit,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default="256Mi"
+	MemoryLimit string `json:"memoryLimit,omitempty"`
 }
 
 type PromtailSpec struct {
-    // +kubebuilder:validation:Optional
-    // +kubebuilder:default=false
-    Enabled bool `json:"enabled"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
+	Enabled bool `json:"enabled"`
 
-    // +kubebuilder:validation:Optional
-    Resources ResourceRequirements `json:"resources,omitempty"`
+	// +kubebuilder:validation:Optional
+	Resources ResourceRequirements `json:"resources,omitempty"`
 
-    // +kubebuilder:validation:Optional
-    Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// +kubebuilder:validation:Optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
-    // +kubebuilder:validation:Optional
-    // +kubebuilder:default=true
-    ScrapeKubernetesLogs bool `json:"scrapeKubernetesLogs,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=true
+	ScrapeKubernetesLogs bool `json:"scrapeKubernetesLogs,omitempty"`
 
-    // +kubebuilder:validation:Optional
-    ExtraArgs []string `json:"extraArgs,omitempty"`
+	// +kubebuilder:validation:Optional
+	ExtraArgs []string `json:"extraArgs,omitempty"`
 }
 
 // ObservabilityStackSpec defines the desired state of ObservabilityStack
@@ -152,9 +130,8 @@ type ObservabilityStackSpec struct {
 
 	// +kubebuilder:validation:Optional
 	Loki LokiSpec `json:"loki,omitempty"`
-	
-	Promtail PromtailSpec `json:"promtail,omitempty"`
 
+	Promtail PromtailSpec `json:"promtail,omitempty"`
 }
 
 // ObservabilityStackStatus defines the observed state of ObservabilityStack

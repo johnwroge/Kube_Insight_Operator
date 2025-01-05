@@ -27,6 +27,10 @@ limitations under the License.
 //+kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
 
+// +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 package controller
 
 import (
@@ -104,8 +108,6 @@ func (r *ObservabilityStackReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, err
 		}
 	}
-
-
 
 	return ctrl.Result{}, nil
 }
@@ -282,82 +284,88 @@ func (r *ObservabilityStackReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
+		Owns(&appsv1.DaemonSet{}).
 		Complete(r)
 }
 
 func (r *ObservabilityStackReconciler) reconcilePromtail(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
-    if !stack.Spec.Promtail.Enabled {
-        return nil
-    }
+	if !stack.Spec.Promtail.Enabled {
+		return nil
+	}
 
-    labels := map[string]string{
-        "app.kubernetes.io/name":       "promtail",
-        "app.kubernetes.io/instance":   stack.Name,
-        "app.kubernetes.io/managed-by": "kube-insight-operator",
-    }
+	if err := r.reconcilePromtailRBAC(ctx, stack); err != nil {
+		return fmt.Errorf("failed to reconcile Promtail RBAC: %w", err)
+	}
 
-    // Convert resource requirements from CRD format to k8s format
-    resources := &corev1.ResourceRequirements{
-        Limits: corev1.ResourceList{
-            corev1.ResourceCPU:    resource.MustParse(stack.Spec.Promtail.Resources.CPULimit),
-            corev1.ResourceMemory: resource.MustParse(stack.Spec.Promtail.Resources.MemoryLimit),
-        },
-        Requests: corev1.ResourceList{
-            corev1.ResourceCPU:    resource.MustParse(stack.Spec.Promtail.Resources.CPURequest),
-            corev1.ResourceMemory: resource.MustParse(stack.Spec.Promtail.Resources.MemoryRequest),
-        },
-    }
+	labels := map[string]string{
+		"app.kubernetes.io/name":       "promtail",
+		"app.kubernetes.io/instance":   stack.Name,
+		"app.kubernetes.io/managed-by": "kube-insight-operator",
+	}
 
-    // Create Promtail instance with values from CRD
-    promtailOpts := promtail.Options{
-        Name:      fmt.Sprintf("%s-promtail", stack.Name),
-        Namespace: stack.Namespace,
-        Labels:    labels,
-        LokiURL:   fmt.Sprintf("http://%s-loki:3100", stack.Name),
-        Resources: resources,
-        // Add default toleration for node-critical pods
-        Tolerations: []corev1.Toleration{
-            {
-                Effect:   corev1.TaintEffectNoSchedule,
-                Operator: corev1.TolerationOperator("Exists"),
-            },
-        },
-        ExtraArgs:           stack.Spec.Promtail.ExtraArgs,
-        ScrapeKubernetesLogs: stack.Spec.Promtail.ScrapeKubernetesLogs,
-    }
+	// Convert resource requirements from CRD format to k8s format
+	resources := &corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse(stack.Spec.Promtail.Resources.CPULimit),
+			corev1.ResourceMemory: resource.MustParse(stack.Spec.Promtail.Resources.MemoryLimit),
+		},
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse(stack.Spec.Promtail.Resources.CPURequest),
+			corev1.ResourceMemory: resource.MustParse(stack.Spec.Promtail.Resources.MemoryRequest),
+		},
+	}
 
-    generator := promtail.NewConfigGenerator(promtailOpts)
+	// Create Promtail instance with values from CRD
+	promtailOpts := promtail.Options{
+		Name:      fmt.Sprintf("%s-promtail", stack.Name),
+		Namespace: stack.Namespace,
+		Labels:    labels,
+		LokiURL:   fmt.Sprintf("http://%s-loki:3100", stack.Name),
+		Resources: resources,
+		// Add default toleration for node-critical pods
+		Tolerations: []corev1.Toleration{
+			{
+				Effect:   corev1.TaintEffectNoSchedule,
+				Operator: corev1.TolerationOperator("Exists"),
+			},
+		},
+		ExtraArgs:            stack.Spec.Promtail.ExtraArgs,
+		ScrapeKubernetesLogs: stack.Spec.Promtail.ScrapeKubernetesLogs,
+	}
 
-    // Generate and create ConfigMap
-    configMap := generator.GenerateConfigMap()
-    if err := ctrl.SetControllerReference(stack, configMap, r.Scheme); err != nil {
-        return fmt.Errorf("failed to set controller reference on configmap: %w", err)
-    }
+	generator := promtail.NewConfigGenerator(promtailOpts)
 
-    if err := r.createOrUpdate(ctx, configMap); err != nil {
-        return fmt.Errorf("failed to reconcile Promtail ConfigMap: %w", err)
-    }
+	// Generate and create ConfigMap
+	configMap := generator.GenerateConfigMap()
+	if err := ctrl.SetControllerReference(stack, configMap, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference on configmap: %w", err)
+	}
 
-    // Generate and create DaemonSet
-    ds := generator.GenerateDaemonSet()
-    
-    // Add extra args from CRD to container args
-    if len(stack.Spec.Promtail.ExtraArgs) > 0 {
-        ds.Spec.Template.Spec.Containers[0].Args = append(
-            ds.Spec.Template.Spec.Containers[0].Args,
-            stack.Spec.Promtail.ExtraArgs...,
-        )
-    }
+	if err := r.createOrUpdate(ctx, configMap); err != nil {
+		return fmt.Errorf("failed to reconcile Promtail ConfigMap: %w", err)
+	}
 
-    if err := ctrl.SetControllerReference(stack, ds, r.Scheme); err != nil {
-        return fmt.Errorf("failed to set controller reference on daemonset: %w", err)
-    }
+	// Generate and create DaemonSet
+	ds := generator.GenerateDaemonSet()
+	ds.Spec.Template.Spec.ServiceAccountName = fmt.Sprintf("%s-promtail", stack.Name)
 
-    if err := r.createOrUpdate(ctx, ds); err != nil {
-        return fmt.Errorf("failed to reconcile Promtail DaemonSet: %w", err)
-    }
+	// Add extra args from CRD to container args
+	if len(stack.Spec.Promtail.ExtraArgs) > 0 {
+		ds.Spec.Template.Spec.Containers[0].Args = append(
+			ds.Spec.Template.Spec.Containers[0].Args,
+			stack.Spec.Promtail.ExtraArgs...,
+		)
+	}
 
-    return nil
+	if err := ctrl.SetControllerReference(stack, ds, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference on daemonset: %w", err)
+	}
+
+	if err := r.createOrUpdate(ctx, ds); err != nil {
+		return fmt.Errorf("failed to reconcile Promtail DaemonSet: %w", err)
+	}
+
+	return nil
 }
 
 func (r *ObservabilityStackReconciler) createOrUpdate(ctx context.Context, obj client.Object) error {
@@ -594,6 +602,85 @@ func (r *ObservabilityStackReconciler) reconcileKubeStateMetricsRBAC(ctx context
 				Kind:      "ServiceAccount",
 				Name:      sa.Name,
 				Namespace: sa.Namespace,
+			},
+		},
+	}
+
+	if err := r.createOrUpdate(ctx, crb); err != nil {
+		return fmt.Errorf("failed to reconcile ClusterRoleBinding: %w", err)
+	}
+
+	return nil
+}
+
+func (r *ObservabilityStackReconciler) reconcilePromtailRBAC(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
+	// Create ServiceAccount
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-promtail", stack.Name),
+			Namespace: stack.Namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/name":     "promtail",
+				"app.kubernetes.io/instance": stack.Name,
+			},
+		},
+	}
+
+	if err := ctrl.SetControllerReference(stack, sa, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference on serviceaccount: %w", err)
+	}
+
+	if err := r.createOrUpdate(ctx, sa); err != nil {
+		return fmt.Errorf("failed to reconcile ServiceAccount: %w", err)
+	}
+
+	// Create ClusterRole
+	cr := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-promtail", stack.Name),
+			Labels: map[string]string{
+				"app.kubernetes.io/name":     "promtail",
+				"app.kubernetes.io/instance": stack.Name,
+			},
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{
+					"nodes",
+					"nodes/proxy",
+					"services",
+					"endpoints",
+					"pods",
+				},
+				Verbs: []string{"get", "list", "watch"},
+			},
+		},
+	}
+
+	if err := r.createOrUpdate(ctx, cr); err != nil {
+		return fmt.Errorf("failed to reconcile ClusterRole: %w", err)
+	}
+
+	// Create ClusterRoleBinding
+	crb := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-promtail", stack.Name),
+			Labels: map[string]string{
+				"app.kubernetes.io/name":     "promtail",
+				"app.kubernetes.io/instance": stack.Name,
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     cr.Name,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      sa.Name,
+				Namespace: stack.Namespace,
 			},
 		},
 	}
