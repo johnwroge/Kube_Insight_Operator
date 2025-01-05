@@ -4,14 +4,8 @@ import (
     "fmt"
     corev1 "k8s.io/api/core/v1"
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+    "k8s.io/apimachinery/pkg/util/intstr"
 )
-
-type Options struct {
-    Name        string
-    Namespace   string
-    Labels      map[string]string
-    LokiURL     string
-}
 
 type ConfigGenerator struct {
     options Options
@@ -32,11 +26,27 @@ server:
 positions:
   filename: /run/promtail/positions.yaml
 
+client:
+  backoff_config:
+    min_period: 100ms
+    max_period: 5s
+    max_retries: 10
+  batchsize: 1024
+  batchwait: 1s
+  timeout: 10s
+
 clients:
   - url: %s/loki/api/v1/push
+    tenant_id: default
+    external_labels:
+      cluster: ${CLUSTER_NAME}
 
 scrape_configs:
-  - job_name: kubernetes-pods
+  - job_name: kubernetes-pods-name
+    pipeline_stages:
+      - docker: {}
+      - tenant:
+          source: namespace
     kubernetes_sd_configs:
       - role: pod
     relabel_configs:
@@ -69,20 +79,11 @@ scrape_configs:
           - __meta_kubernetes_pod_container_name
         action: replace
         target_label: container
-      - action: replace
-        source_labels:
-          - __meta_kubernetes_namespace
-        target_label: exported_namespace
-      - action: replace
-        source_labels:
-          - __meta_kubernetes_pod_name
-        target_label: exported_pod
-      - action: replace
-        source_labels:
-          - __meta_kubernetes_pod_container_name
-        target_label: exported_container
       - action: labelmap
         regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: 
+          - __meta_kubernetes_namespace
+        target_label: tenant_id
       - replacement: /var/log/pods/*$1/*.log
         separator: /
         source_labels:
@@ -98,6 +99,28 @@ scrape_configs:
         },
         Data: map[string]string{
             "promtail.yaml": promtailConfig,
+        },
+    }
+}
+
+// GenerateService creates a Service for Promtail
+func (g *ConfigGenerator) GenerateService() *corev1.Service {
+    return &corev1.Service{
+        ObjectMeta: metav1.ObjectMeta{
+            Name:      g.options.Name,
+            Namespace: g.options.Namespace,
+            Labels:    g.options.Labels,
+        },
+        Spec: corev1.ServiceSpec{
+            Ports: []corev1.ServicePort{
+                {
+                    Name:       "http-metrics",
+                    Port:       9080,
+                    TargetPort: intstr.FromInt(9080),
+                    Protocol:   corev1.ProtocolTCP,
+                },
+            },
+            Selector: g.options.Labels,
         },
     }
 }

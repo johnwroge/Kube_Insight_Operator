@@ -37,6 +37,7 @@ import (
 	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/grafana"
 	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/loki"
 	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/prometheus"
+	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/pkg/promtail"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -96,6 +97,15 @@ func (r *ObservabilityStackReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, err
 		}
 	}
+
+	if stack.Spec.Promtail.Enabled {
+		if err := r.reconcilePromtail(ctx, stack); err != nil {
+			log.Error(err, "Failed to reconcile Promtail")
+			return ctrl.Result{}, err
+		}
+	}
+
+
 
 	return ctrl.Result{}, nil
 }
@@ -275,24 +285,80 @@ func (r *ObservabilityStackReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		Complete(r)
 }
 
-// Helper function for creating or updating resources
-// func (r *ObservabilityStackReconciler) createOrUpdate(ctx context.Context, obj client.Object) error {
-// 	err := r.Get(ctx, client.ObjectKeyFromObject(obj), obj.DeepCopyObject().(client.Object))
-// 	if err != nil {
-// 		if errors.IsNotFound(err) {
-// 			if err = r.Create(ctx, obj); err != nil {
-// 				return fmt.Errorf("failed to create resource: %w", err)
-// 			}
-// 			return nil
-// 		}
-// 		return fmt.Errorf("failed to get resource: %w", err)
-// 	}
+func (r *ObservabilityStackReconciler) reconcilePromtail(ctx context.Context, stack *monitoringv1alpha1.ObservabilityStack) error {
+    if !stack.Spec.Promtail.Enabled {
+        return nil
+    }
 
-// 	if err = r.Update(ctx, obj); err != nil {
-// 		return fmt.Errorf("failed to update resource: %w", err)
-// 	}
-// 	return nil
-// }
+    labels := map[string]string{
+        "app.kubernetes.io/name":       "promtail",
+        "app.kubernetes.io/instance":   stack.Name,
+        "app.kubernetes.io/managed-by": "kube-insight-operator",
+    }
+
+    // Convert resource requirements from CRD format to k8s format
+    resources := &corev1.ResourceRequirements{
+        Limits: corev1.ResourceList{
+            corev1.ResourceCPU:    resource.MustParse(stack.Spec.Promtail.Resources.CPULimit),
+            corev1.ResourceMemory: resource.MustParse(stack.Spec.Promtail.Resources.MemoryLimit),
+        },
+        Requests: corev1.ResourceList{
+            corev1.ResourceCPU:    resource.MustParse(stack.Spec.Promtail.Resources.CPURequest),
+            corev1.ResourceMemory: resource.MustParse(stack.Spec.Promtail.Resources.MemoryRequest),
+        },
+    }
+
+    // Create Promtail instance with values from CRD
+    promtailOpts := promtail.Options{
+        Name:      fmt.Sprintf("%s-promtail", stack.Name),
+        Namespace: stack.Namespace,
+        Labels:    labels,
+        LokiURL:   fmt.Sprintf("http://%s-loki:3100", stack.Name),
+        Resources: resources,
+        // Add default toleration for node-critical pods
+        Tolerations: []corev1.Toleration{
+            {
+                Effect:   corev1.TaintEffectNoSchedule,
+                Operator: corev1.TolerationOperator("Exists"),
+            },
+        },
+        ExtraArgs:           stack.Spec.Promtail.ExtraArgs,
+        ScrapeKubernetesLogs: stack.Spec.Promtail.ScrapeKubernetesLogs,
+    }
+
+    generator := promtail.NewConfigGenerator(promtailOpts)
+
+    // Generate and create ConfigMap
+    configMap := generator.GenerateConfigMap()
+    if err := ctrl.SetControllerReference(stack, configMap, r.Scheme); err != nil {
+        return fmt.Errorf("failed to set controller reference on configmap: %w", err)
+    }
+
+    if err := r.createOrUpdate(ctx, configMap); err != nil {
+        return fmt.Errorf("failed to reconcile Promtail ConfigMap: %w", err)
+    }
+
+    // Generate and create DaemonSet
+    ds := generator.GenerateDaemonSet()
+    
+    // Add extra args from CRD to container args
+    if len(stack.Spec.Promtail.ExtraArgs) > 0 {
+        ds.Spec.Template.Spec.Containers[0].Args = append(
+            ds.Spec.Template.Spec.Containers[0].Args,
+            stack.Spec.Promtail.ExtraArgs...,
+        )
+    }
+
+    if err := ctrl.SetControllerReference(stack, ds, r.Scheme); err != nil {
+        return fmt.Errorf("failed to set controller reference on daemonset: %w", err)
+    }
+
+    if err := r.createOrUpdate(ctx, ds); err != nil {
+        return fmt.Errorf("failed to reconcile Promtail DaemonSet: %w", err)
+    }
+
+    return nil
+}
 
 func (r *ObservabilityStackReconciler) createOrUpdate(ctx context.Context, obj client.Object) error {
 	if _, isPVC := obj.(*corev1.PersistentVolumeClaim); isPVC {

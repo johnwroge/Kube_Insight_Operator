@@ -26,3 +26,14 @@ spec:
     enabled: true
     storage: "10Gi"
     retentionDays: 15
+  promtail:
+    enabled: true
+    resources:
+      cpuRequest: "100m"
+      memoryRequest: "128Mi"
+      cpuLimit: "200m"
+      memoryLimit: "256Mi"
+    scrapeKubernetesLogs: true
+    extraArgs:
+      - "-client.external-labels=cluster=prod"
+  

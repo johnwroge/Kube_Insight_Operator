@@ -106,10 +106,41 @@ type GrafanaDataSource struct {
 	IsDefault bool `json:"isDefault,omitempty"`
 }
 
+type ResourceRequirements struct {
+    // +kubebuilder:validation:Optional
+    // +kubebuilder:default="100m"
+    CPURequest string `json:"cpuRequest,omitempty"`
+
+    // +kubebuilder:validation:Optional
+    // +kubebuilder:default="128Mi"
+    MemoryRequest string `json:"memoryRequest,omitempty"`
+
+    // +kubebuilder:validation:Optional
+    // +kubebuilder:default="200m"
+    CPULimit string `json:"cpuLimit,omitempty"`
+
+    // +kubebuilder:validation:Optional
+    // +kubebuilder:default="256Mi"
+    MemoryLimit string `json:"memoryLimit,omitempty"`
+}
+
 type PromtailSpec struct {
     // +kubebuilder:validation:Optional
     // +kubebuilder:default=false
     Enabled bool `json:"enabled"`
+
+    // +kubebuilder:validation:Optional
+    Resources ResourceRequirements `json:"resources,omitempty"`
+
+    // +kubebuilder:validation:Optional
+    Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+    // +kubebuilder:validation:Optional
+    // +kubebuilder:default=true
+    ScrapeKubernetesLogs bool `json:"scrapeKubernetesLogs,omitempty"`
+
+    // +kubebuilder:validation:Optional
+    ExtraArgs []string `json:"extraArgs,omitempty"`
 }
 
 // ObservabilityStackSpec defines the desired state of ObservabilityStack
