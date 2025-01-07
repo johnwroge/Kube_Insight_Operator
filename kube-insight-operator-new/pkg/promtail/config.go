@@ -103,7 +103,6 @@ scrape_configs:
 	}
 }
 
-// GenerateService creates a Service for Promtail
 func (g *ConfigGenerator) GenerateService() *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{

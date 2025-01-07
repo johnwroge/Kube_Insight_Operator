@@ -7,7 +7,6 @@ import (
 )
 
 func (g *ConfigGenerator) GenerateConfigMap() *corev1.ConfigMap {
-	// Convert retention days to hours
 	retentionPeriod := fmt.Sprintf("%dh", g.options.RetentionDays*24)
 
 tempoConfig := `

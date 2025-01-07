@@ -106,7 +106,6 @@ func NewKubeStateMetricsService(namespace string) *corev1.Service {
 	}
 }
 
-// RBAC resources for kube-state-metrics
 func NewKubeStateMetricsServiceAccount(namespace string) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{

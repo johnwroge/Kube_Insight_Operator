@@ -8,7 +8,6 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-// GenerateDaemonSet creates a DaemonSet for Promtail
 func (g *ConfigGenerator) GenerateDaemonSet() *appsv1.DaemonSet {
 	return &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
