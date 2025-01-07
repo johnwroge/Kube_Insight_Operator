@@ -6,12 +6,12 @@ import (
 )
 
 type PrometheusOptions struct {
-	Name      string
-	Namespace string
-	Labels    map[string]string
-	ScrapeInterval  string 
-	RetentionPeriod string 
-	StorageSize     string 
+	Name            string
+	Namespace       string
+	Labels          map[string]string
+	ScrapeInterval  string
+	RetentionPeriod string
+	StorageSize     string
 }
 
 type Component interface {

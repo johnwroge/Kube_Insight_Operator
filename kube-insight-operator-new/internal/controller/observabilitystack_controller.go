@@ -811,13 +811,25 @@ func (r *ObservabilityStackReconciler) reconcileGrafana(ctx context.Context, sta
 	}
 
 	// Create Grafana instance
+	// grafanaOpts := grafana.Options{
+	// 	Name:          fmt.Sprintf("%s-grafana", stack.Name),
+	// 	Namespace:     stack.Namespace,
+	// 	Labels:        labels,
+	// 	AdminPassword: stack.Spec.Grafana.AdminPassword,
+	// 	Storage:       stack.Spec.Grafana.Storage,
+	// 	PrometheusURL: fmt.Sprintf("http://%s-prometheus:9090", stack.Name),
+	// }
+
+	// Create Grafana instance
+	// Create Grafana instance
 	grafanaOpts := grafana.Options{
-		Name:          fmt.Sprintf("%s-grafana", stack.Name),
-		Namespace:     stack.Namespace,
-		Labels:        labels,
-		AdminPassword: stack.Spec.Grafana.AdminPassword,
-		Storage:       stack.Spec.Grafana.Storage,
-		PrometheusURL: fmt.Sprintf("http://%s-prometheus:9090", stack.Name),
+		Name:                  fmt.Sprintf("%s-grafana", stack.Name),
+		Namespace:             stack.Namespace,
+		Labels:                labels,
+		AdminPassword:         stack.Spec.Grafana.AdminPassword,
+		Storage:               stack.Spec.Grafana.Storage,
+		AdditionalDataSources: stack.Spec.Grafana.AdditionalDataSources,
+		DefaultDashboards:     stack.Spec.Grafana.DefaultDashboards,
 	}
 
 	g := grafana.New(grafanaOpts)

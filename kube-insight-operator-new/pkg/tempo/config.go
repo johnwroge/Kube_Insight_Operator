@@ -9,7 +9,7 @@ import (
 func (g *ConfigGenerator) GenerateConfigMap() *corev1.ConfigMap {
 	retentionPeriod := fmt.Sprintf("%dh", g.options.RetentionDays*24)
 
-tempoConfig := `
+	tempoConfig := `
 server:
   http_listen_port: 3200
 
