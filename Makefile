@@ -28,8 +28,8 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 # This variable is used to construct full image tags for bundle and catalog images.
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
-# monitoring.example.com/kube-insight-operator-new-bundle:$VERSION and monitoring.example.com/kube-insight-operator-new-catalog:$VERSION.
-IMAGE_TAG_BASE ?= monitoring.example.com/kube-insight-operator-new
+# monitoring.example.com/kube-insight-operator-bundle:$VERSION and monitoring.example.com/kube-insight-operator-catalog:$VERSION.
+IMAGE_TAG_BASE ?= monitoring.example.com/kube-insight-operator
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
@@ -159,10 +159,10 @@ PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 docker-buildx: ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
-	- $(CONTAINER_TOOL) buildx create --name kube-insight-operator-new-builder
-	$(CONTAINER_TOOL) buildx use kube-insight-operator-new-builder
+	- $(CONTAINER_TOOL) buildx create --name kube-insight-operator-builder
+	$(CONTAINER_TOOL) buildx use kube-insight-operator-builder
 	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
-	- $(CONTAINER_TOOL) buildx rm kube-insight-operator-new-builder
+	- $(CONTAINER_TOOL) buildx rm kube-insight-operator-builder
 	rm Dockerfile.cross
 
 .PHONY: build-installer

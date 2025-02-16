@@ -1,27 +1,37 @@
-# kube-insight-operator-new
-// TODO(user): Add simple overview of use/purpose
+
+# kube-insight-operator
+
+A Kubernetes operator that automates the deployment and management of a complete observability stack including Prometheus, Loki, Tempo, and Grafana.
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+
+The Kube-Insight Operator simplifies the deployment and management of observability tools in Kubernetes clusters. It provides:
+
+- Automated deployment of Prometheus for metrics collection
+- Loki integration for log aggregation
+- Tempo for distributed tracing
+- Grafana dashboards for visualization
+- Custom resource definitions (CRDs) for declarative configuration
+- Automated lifecycle management and updates
 
 ## Getting Started
 
 ### Prerequisites
 - go version v1.22.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
+- docker version 17.03+
+- kubectl version v1.11.3+
+- Access to a Kubernetes v1.11.3+ cluster
 
 ### To Deploy on the cluster
 **Build and push your image to the location specified by `IMG`:**
 
 ```sh
-make docker-build docker-push IMG=<some-registry>/kube-insight-operator-new:tag
+make docker-build docker-push IMG=<some-registry>/kube-insight-operator:tag
 ```
 
 **NOTE:** This image ought to be published in the personal registry you specified.
 And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
+Make sure you have the proper permission to the registry if the above commands don't work.
 
 **Install the CRDs into the cluster:**
 
@@ -32,7 +42,7 @@ make install
 **Deploy the Manager to the cluster with the image specified by `IMG`:**
 
 ```sh
-make deploy IMG=<some-registry>/kube-insight-operator-new:tag
+make deploy IMG=<some-registry>/kube-insight-operator:tag
 ```
 
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
@@ -45,10 +55,10 @@ You can apply the samples (examples) from the config/sample:
 kubectl apply -k config/samples/
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
+>**NOTE**: Ensure that the samples have default values to test it out.
 
 ### To Uninstall
-**Delete the instances (CRs) from the cluster:**
+**Delete the instances (CRDs) from the cluster:**
 
 ```sh
 kubectl delete -k config/samples/
@@ -73,7 +83,7 @@ Following are the steps to build the installer and distribute this project to us
 1. Build the installer for the image built and published in the registry:
 
 ```sh
-make build-installer IMG=<some-registry>/kube-insight-operator-new:tag
+make build-installer IMG=<some-registry>/kube-insight-operator:tag
 ```
 
 NOTE: The makefile target mentioned above generates an 'install.yaml'
@@ -83,14 +93,21 @@ its dependencies.
 
 2. Using the installer
 
-Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
+Users can install the project by running:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/kube-insight-operator-new/<tag or branch>/dist/install.yaml
+kubectl apply -f https://raw.githubusercontent.com/<org>/kube-insight-operator/<tag or branch>/dist/install.yaml
 ```
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 **NOTE:** Run `make help` for more information on all potential `make` targets
 
@@ -112,3 +129,4 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
+Would you like me to help create an artifact for this README or would you prefer to manually update it?

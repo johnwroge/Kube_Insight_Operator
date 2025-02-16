@@ -1,4 +1,4 @@
-module github.com/johnwroge/kube-insight-operator/kube-insight-operator-new
+module github.com/johnwroge/kube-insight-operator
 
 go 1.22.0
 

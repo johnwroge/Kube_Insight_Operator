@@ -8,7 +8,7 @@ layout:
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
-projectName: kube-insight-operator-new
+projectName: kube-insight-operator
 repo: github.com/johnwroge/kube-insight-operator
 resources:
 - api:
@@ -18,6 +18,6 @@ resources:
   domain: monitoring.example.com
   group: monitoring
   kind: ObservabilityStack
-  path: github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/api/v1alpha1
+  path: github.com/johnwroge/kube-insight-operator/kube-insight-operator/api/v1alpha1
   version: v1alpha1
 version: "3"

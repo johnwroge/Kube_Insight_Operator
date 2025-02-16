@@ -1,7 +1,7 @@
 package grafana
 
 import (
-	monitoringv1alpha1 "github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/api/v1alpha1"
+	monitoringv1alpha1 "github.com/johnwroge/kube-insight-operator/api/v1alpha1"
 )
 
 type Options struct {
