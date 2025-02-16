@@ -1,235 +1,114 @@
-# Kube_Insight_Operator
+# kube-insight-operator-new
+// TODO(user): Add simple overview of use/purpose
 
-A Kubernetes Operator that automates deployment and management of a complete observability stack, combining metrics, logs, and traces with cost optimization insights.
+## Description
+// TODO(user): An in-depth paragraph about your project and overview of use
 
-## Overview
+## Getting Started
 
-Kube_Insight_Operator simplifies Kubernetes observability by:
-- Automating deployment of Prometheus, Loki, Tempo, and Grafana
-- Providing pre-configured dashboards and alert rules
-- Offering cost optimization recommendations
-- Managing the entire observability lifecycle
+### Prerequisites
+- go version v1.22.0+
+- docker version 17.03+.
+- kubectl version v1.11.3+.
+- Access to a Kubernetes v1.11.3+ cluster.
 
-## Status
-This project is currently experimental/under development.
+### To Deploy on the cluster
+**Build and push your image to the location specified by `IMG`:**
 
-## Features
-- One-click observability stack deployment
-- Automated configuration and integration
-- Pre-built dashboards for common use cases
-- Cost analysis and optimization
-
-
-
-# Kube Insight Operator
-
-A Kubernetes operator that deploys and manages a complete observability stack including Prometheus, Grafana, Loki, Promtail, and Tempo.
-
-## Overview
-
-This operator provides a unified way to deploy and manage:
-- Metrics monitoring with Prometheus
-- Log aggregation with Loki and Promtail
-- Distributed tracing with Tempo
-- Visualization with Grafana
-
-## Prerequisites
-
-- Kubernetes cluster (1.19+)
-- kubectl configured to communicate with your cluster
-- make
-- golang 1.19+
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/your-username/kube-insight-operator
-cd kube-insight-operator
+```sh
+make docker-build docker-push IMG=<some-registry>/kube-insight-operator-new:tag
 ```
 
-2. Install the CRDs:
-```bash
-make manifests
+**NOTE:** This image ought to be published in the personal registry you specified.
+And it is required to have access to pull the image from the working environment.
+Make sure you have the proper permission to the registry if the above commands don’t work.
+
+**Install the CRDs into the cluster:**
+
+```sh
 make install
 ```
 
-3. Run the operator:
-```bash
-make run
+**Deploy the Manager to the cluster with the image specified by `IMG`:**
+
+```sh
+make deploy IMG=<some-registry>/kube-insight-operator-new:tag
 ```
 
-## Usage
+> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
+privileges or be logged in as admin.
 
-1. Create an ObservabilityStack by applying the following YAML:
+**Create instances of your solution**
+You can apply the samples (examples) from the config/sample:
 
-```yaml
-apiVersion: monitoring.monitoring.example.com/v1alpha1
-kind: ObservabilityStack
-metadata:
-  name: monitoring-test
-spec:
-  prometheus:
-    enabled: true
-    storage: "10Gi"
-    retention: "15d"
-    nodeExporter:
-      enabled: true
-    kubeStateMetrics:
-      enabled: true
-  grafana:
-    enabled: true
-    adminPassword: "admin"
-    serviceType: "ClusterIP"
-    storage: "5Gi"
-    defaultDashboards: true
-    additionalDataSources:
-    - name: "prometheus"
-      type: "prometheus"
-      url: "http://monitoring-test-prometheus:9090"
-      isDefault: true
-    - name: "tempo"
-      type: "tempo"
-      url: "http://monitoring-test-tempo:3200"
-    - name: "loki"
-      type: "loki"
-      url: "http://monitoring-test-loki:3100"
-  loki:
-    enabled: true
-    storage: "10Gi"
-    retentionDays: 15
-  promtail:
-    enabled: true
-    resources:
-      cpuRequest: "100m"
-      memoryRequest: "128Mi"
-      cpuLimit: "200m"
-      memoryLimit: "256Mi"
-    scrapeKubernetesLogs: true
-  tempo:
-    enabled: true
-    storage: "10Gi"
-    retentionDays: 7
-    resources:
-      cpuRequest: "200m"
-      memoryRequest: "512Mi"
-      cpuLimit: "1"
-      memoryLimit: "2Gi"
+```sh
+kubectl apply -k config/samples/
 ```
 
-2. Apply the configuration:
-```bash
-kubectl apply -f config/samples/monitoring_v1alpha1_observabilitystack.yaml
+>**NOTE**: Ensure that the samples has default values to test it out.
+
+### To Uninstall
+**Delete the instances (CRs) from the cluster:**
+
+```sh
+kubectl delete -k config/samples/
 ```
 
-3. Access the components:
+**Delete the APIs(CRDs) from the cluster:**
 
-```bash
-# Grafana
-kubectl port-forward svc/monitoring-test-grafana 3000:3000
-# Access at http://localhost:3000 (default credentials: admin/admin)
-
-# Prometheus
-kubectl port-forward svc/monitoring-test-prometheus 9090:9090
-# Access at http://localhost:9090
-
-# Loki
-kubectl port-forward svc/monitoring-test-loki 3100:3100
-# Access at http://localhost:3100
-
-# Tempo
-kubectl port-forward svc/monitoring-test-tempo 3200:3200
-# Access at http://localhost:3200
+```sh
+make uninstall
 ```
 
-## Configuration Options
+**UnDeploy the controller from the cluster:**
 
-### Prometheus
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| enabled | Enable Prometheus | false |
-| storage | Storage size | "10Gi" |
-| retention | Data retention period | "15d" |
-| nodeExporter.enabled | Enable node exporter | true |
-| kubeStateMetrics.enabled | Enable kube-state-metrics | true |
-
-### Grafana
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| enabled | Enable Grafana | false |
-| adminPassword | Admin password | "admin" |
-| serviceType | Service type | "ClusterIP" |
-| storage | Storage size | "5Gi" |
-| defaultDashboards | Enable default dashboards | true |
-| additionalDataSources | Additional data sources | [] |
-
-### Loki
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| enabled | Enable Loki | false |
-| storage | Storage size | "10Gi" |
-| retentionDays | Log retention period in days | 14 |
-
-### Promtail
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| enabled | Enable Promtail | false |
-| resources | Resource requests and limits | see example |
-| scrapeKubernetesLogs | Enable Kubernetes log scraping | true |
-
-### Tempo
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| enabled | Enable Tempo | false |
-| storage | Storage size | "10Gi" |
-| retentionDays | Trace retention period in days | 7 |
-| resources | Resource requests and limits | see example |
-
-## Development
-
-1. Make changes to the operator code
-2. Update CRDs:
-```bash
-make manifests
-```
-3. Install updated CRDs:
-```bash
-make install
-```
-4. Run the operator locally:
-```bash
-make run
+```sh
+make undeploy
 ```
 
-## Troubleshooting
+## Project Distribution
 
-Common issues and solutions:
+Following are the steps to build the installer and distribute this project to users.
 
-1. Pods not starting:
-```bash
-kubectl describe pod <pod-name>
-kubectl logs <pod-name>
+1. Build the installer for the image built and published in the registry:
+
+```sh
+make build-installer IMG=<some-registry>/kube-insight-operator-new:tag
 ```
 
-2. PVC issues:
-```bash
-kubectl get pvc
-kubectl describe pvc <pvc-name>
+NOTE: The makefile target mentioned above generates an 'install.yaml'
+file in the dist directory. This file contains all the resources built
+with Kustomize, which are necessary to install this project without
+its dependencies.
+
+2. Using the installer
+
+Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
+
+```sh
+kubectl apply -f https://raw.githubusercontent.com/<org>/kube-insight-operator-new/<tag or branch>/dist/install.yaml
 ```
-
-3. Check operator logs:
-```bash
-kubectl logs -l app=kube-insight-operator
-```
-
-
-## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+// TODO(user): Add detailed information on how you would like others to contribute to this project
+
+**NOTE:** Run `make help` for more information on all potential `make` targets
+
+More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+
+## License
+
+Copyright 2024.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 
