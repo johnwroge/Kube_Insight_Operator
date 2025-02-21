@@ -9,7 +9,16 @@ Kube Insight Operator simplifies Kubernetes observability by:
 - Providing pre-configured dashboards and alert rules
 - Managing the entire observability lifecycle
 
+## Status
+
 **This project is currently experimental/under development.**
+
+### Immediate Priorities
+- [ ] Implement comprehensive status reporting for all observability components
+- [ ] Enhance error handling and logging
+- [ ] Develop a Helm chart for easier deployment
+- [ ] Create detailed documentation for configuration and customization
+- [ ] Implement more robust testing suite
 
 ## Technology Stack
 
@@ -236,4 +245,3 @@ This project is licensed under the Apache License - see the [LICENSE](LICENSE) f
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
-
