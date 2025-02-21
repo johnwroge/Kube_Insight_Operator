@@ -1,132 +1,235 @@
+# Kube_Insight_Operator
 
-# kube-insight-operator
+A Kubernetes Operator that automates deployment and management of a complete observability stack, combining metrics, logs, and traces with cost optimization insights.
 
-A Kubernetes operator that automates the deployment and management of a complete observability stack including Prometheus, Loki, Tempo, and Grafana.
+## Overview
 
-## Description
+Kube_Insight_Operator simplifies Kubernetes observability by:
+- Automating deployment of Prometheus, Loki, Tempo, and Grafana
+- Providing pre-configured dashboards and alert rules
+- Offering cost optimization recommendations
+- Managing the entire observability lifecycle
 
-The Kube-Insight Operator simplifies the deployment and management of observability tools in Kubernetes clusters. It provides:
+## Status
+This project is currently experimental/under development.
 
-- Automated deployment of Prometheus for metrics collection
-- Loki integration for log aggregation
-- Tempo for distributed tracing
-- Grafana dashboards for visualization
-- Custom resource definitions (CRDs) for declarative configuration
-- Automated lifecycle management and updates
+## Features
+- One-click observability stack deployment
+- Automated configuration and integration
+- Pre-built dashboards for common use cases
+- Cost analysis and optimization
 
-## Getting Started
 
-### Prerequisites
-- go version v1.22.0+
-- docker version 17.03+
-- kubectl version v1.11.3+
-- Access to a Kubernetes v1.11.3+ cluster
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+# Kube Insight Operator
 
-```sh
-make docker-build docker-push IMG=<some-registry>/kube-insight-operator:tag
+A Kubernetes operator that deploys and manages a complete observability stack including Prometheus, Grafana, Loki, Promtail, and Tempo.
+
+## Overview
+
+This operator provides a unified way to deploy and manage:
+- Metrics monitoring with Prometheus
+- Log aggregation with Loki and Promtail
+- Distributed tracing with Tempo
+- Visualization with Grafana
+
+## Prerequisites
+
+- Kubernetes cluster (1.19+)
+- kubectl configured to communicate with your cluster
+- make
+- golang 1.19+
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/your-username/kube-insight-operator
+cd kube-insight-operator
 ```
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don't work.
-
-**Install the CRDs into the cluster:**
-
-```sh
+2. Install the CRDs:
+```bash
+make manifests
 make install
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
-
-```sh
-make deploy IMG=<some-registry>/kube-insight-operator:tag
+3. Run the operator:
+```bash
+make run
 ```
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
+## Usage
 
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
+1. Create an ObservabilityStack by applying the following YAML:
 
-```sh
-kubectl apply -k config/samples/
+```yaml
+apiVersion: monitoring.monitoring.example.com/v1alpha1
+kind: ObservabilityStack
+metadata:
+  name: monitoring-test
+spec:
+  prometheus:
+    enabled: true
+    storage: "10Gi"
+    retention: "15d"
+    nodeExporter:
+      enabled: true
+    kubeStateMetrics:
+      enabled: true
+  grafana:
+    enabled: true
+    adminPassword: "admin"
+    serviceType: "ClusterIP"
+    storage: "5Gi"
+    defaultDashboards: true
+    additionalDataSources:
+    - name: "prometheus"
+      type: "prometheus"
+      url: "http://monitoring-test-prometheus:9090"
+      isDefault: true
+    - name: "tempo"
+      type: "tempo"
+      url: "http://monitoring-test-tempo:3200"
+    - name: "loki"
+      type: "loki"
+      url: "http://monitoring-test-loki:3100"
+  loki:
+    enabled: true
+    storage: "10Gi"
+    retentionDays: 15
+  promtail:
+    enabled: true
+    resources:
+      cpuRequest: "100m"
+      memoryRequest: "128Mi"
+      cpuLimit: "200m"
+      memoryLimit: "256Mi"
+    scrapeKubernetesLogs: true
+  tempo:
+    enabled: true
+    storage: "10Gi"
+    retentionDays: 7
+    resources:
+      cpuRequest: "200m"
+      memoryRequest: "512Mi"
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
 ```
 
->**NOTE**: Ensure that the samples have default values to test it out.
-
-### To Uninstall
-**Delete the instances (CRDs) from the cluster:**
-
-```sh
-kubectl delete -k config/samples/
+2. Apply the configuration:
+```bash
+kubectl apply -f config/samples/monitoring_v1alpha1_observabilitystack.yaml
 ```
 
-**Delete the APIs(CRDs) from the cluster:**
+3. Access the components:
 
-```sh
-make uninstall
+```bash
+# Grafana
+kubectl port-forward svc/monitoring-test-grafana 3000:3000
+# Access at http://localhost:3000 (default credentials: admin/admin)
+
+# Prometheus
+kubectl port-forward svc/monitoring-test-prometheus 9090:9090
+# Access at http://localhost:9090
+
+# Loki
+kubectl port-forward svc/monitoring-test-loki 3100:3100
+# Access at http://localhost:3100
+
+# Tempo
+kubectl port-forward svc/monitoring-test-tempo 3200:3200
+# Access at http://localhost:3200
 ```
 
-**UnDeploy the controller from the cluster:**
+## Configuration Options
 
-```sh
-make undeploy
+### Prometheus
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| enabled | Enable Prometheus | false |
+| storage | Storage size | "10Gi" |
+| retention | Data retention period | "15d" |
+| nodeExporter.enabled | Enable node exporter | true |
+| kubeStateMetrics.enabled | Enable kube-state-metrics | true |
+
+### Grafana
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| enabled | Enable Grafana | false |
+| adminPassword | Admin password | "admin" |
+| serviceType | Service type | "ClusterIP" |
+| storage | Storage size | "5Gi" |
+| defaultDashboards | Enable default dashboards | true |
+| additionalDataSources | Additional data sources | [] |
+
+### Loki
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| enabled | Enable Loki | false |
+| storage | Storage size | "10Gi" |
+| retentionDays | Log retention period in days | 14 |
+
+### Promtail
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| enabled | Enable Promtail | false |
+| resources | Resource requests and limits | see example |
+| scrapeKubernetesLogs | Enable Kubernetes log scraping | true |
+
+### Tempo
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| enabled | Enable Tempo | false |
+| storage | Storage size | "10Gi" |
+| retentionDays | Trace retention period in days | 7 |
+| resources | Resource requests and limits | see example |
+
+## Development
+
+1. Make changes to the operator code
+2. Update CRDs:
+```bash
+make manifests
+```
+3. Install updated CRDs:
+```bash
+make install
+```
+4. Run the operator locally:
+```bash
+make run
 ```
 
-## Project Distribution
+## Troubleshooting
 
-Following are the steps to build the installer and distribute this project to users.
+Common issues and solutions:
 
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer IMG=<some-registry>/kube-insight-operator:tag
+1. Pods not starting:
+```bash
+kubectl describe pod <pod-name>
+kubectl logs <pod-name>
 ```
 
-NOTE: The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without
-its dependencies.
-
-2. Using the installer
-
-Users can install the project by running:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/kube-insight-operator/<tag or branch>/dist/install.yaml
+2. PVC issues:
+```bash
+kubectl get pvc
+kubectl describe pvc <pvc-name>
 ```
 
-## Contributing
+3. Check operator logs:
+```bash
+kubectl logs -l app=kube-insight-operator
+```
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-**NOTE:** Run `make help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
 
 ## License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Copyright 2024.
+## Contributing
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-Would you like me to help create an artifact for this README or would you prefer to manually update it?

@@ -1,0 +1,19 @@
+# Prometheus Monitor Service (Metrics)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/name: kube-insight-operator-new
+    app.kubernetes.io/managed-by: kustomize
+  name: controller-manager-metrics-monitor
+  namespace: system
+spec:
+  endpoints:
+    - path: /metrics
+      port: metrics  # Changed from 'https' to 'metrics'
+      scheme: http   # Changed from 'https' to 'http'
+      interval: 15s  # Added scrape interval
+  selector:
+    matchLabels:
+      control-plane: controller-manager

@@ -1,0 +1,23 @@
+# permissions for end users to view observabilitystacks.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-insight-operator-new
+    app.kubernetes.io/managed-by: kustomize
+  name: observabilitystack-viewer-role
+rules:
+- apiGroups:
+  - monitoring.monitoring.example.com
+  resources:
+  - observabilitystacks
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - monitoring.monitoring.example.com
+  resources:
+  - observabilitystacks/status
+  verbs:
+  - get
