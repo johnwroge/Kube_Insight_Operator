@@ -1,37 +1,41 @@
-# Kube_Insight_Operator
-
-A Kubernetes Operator that automates deployment and management of a complete observability stack, combining metrics, logs, and traces with cost optimization insights.
-
-## Overview
-
-Kube_Insight_Operator simplifies Kubernetes observability by:
-- Automating deployment of Prometheus, Loki, Tempo, and Grafana
-- Providing pre-configured dashboards and alert rules
-- Offering cost optimization recommendations
-- Managing the entire observability lifecycle
-
-## Status
-This project is currently experimental/under development.
-
-## Features
-- One-click observability stack deployment
-- Automated configuration and integration
-- Pre-built dashboards for common use cases
-- Cost analysis and optimization
-
-
-
 # Kube Insight Operator
 
-A Kubernetes operator that deploys and manages a complete observability stack including Prometheus, Grafana, Loki, Promtail, and Tempo.
+A Kubernetes operator that deploys and manages a complete observability stack combining metrics, logs, and traces including Prometheus, Grafana, Loki, Promtail, and Tempo.
 
 ## Overview
 
-This operator provides a unified way to deploy and manage:
-- Metrics monitoring with Prometheus
-- Log aggregation with Loki and Promtail
-- Distributed tracing with Tempo
-- Visualization with Grafana
+Kube Insight Operator simplifies Kubernetes observability by:
+- Automating deployment of Prometheus, Loki, Tempo, and Grafana
+- Providing pre-configured dashboards and alert rules
+- Managing the entire observability lifecycle
+
+**This project is currently experimental/under development.**
+
+## Technology Stack
+
+This project leverages the Kubernetes Operator SDK, a toolkit for developing Kubernetes operators that provides:
+- Automated scaffolding and code generation for Kubernetes operator development
+- Controller runtime for managing and reconciling custom resources
+- Custom Resource Definition (CRD) management
+- Reconciliation loop implementation
+- Built on the Kubebuilder framework
+- Built with Go, the primary language for Kubernetes operator development
+
+
+### Observability Stack Components
+The operator integrates a comprehensive observability solution with:
+- **Prometheus**: Comprehensive metrics collection and monitoring system for capturing performance and operational data
+- **Grafana**: Advanced visualization platform for creating interactive dashboards and graphical representations of complex metrics
+- **Loki**: Scalable log aggregation and storage solution designed for cloud-native environments
+- **Promtail**: Efficient log collection agent for gathering logs from various sources
+- **Tempo**: Distributed tracing system for tracking and analyzing request flows across microservices
+
+### Core Technologies
+- Kubernetes Operator SDK
+- Go programming language
+- Kubebuilder framework
+- Custom Resource Definitions (CRDs)
+
 
 ## Prerequisites
 
@@ -44,7 +48,7 @@ This operator provides a unified way to deploy and manage:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/kube-insight-operator
+git clone https://github.com/johnwroge/kube-insight-operator
 cd kube-insight-operator
 ```
 
@@ -147,7 +151,7 @@ kubectl port-forward svc/monitoring-test-tempo 3200:3200
 ### Prometheus
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| enabled | Enable Prometheus | false |
+| enabled | Enable Prometheus | true |
 | storage | Storage size | "10Gi" |
 | retention | Data retention period | "15d" |
 | nodeExporter.enabled | Enable node exporter | true |
@@ -156,7 +160,7 @@ kubectl port-forward svc/monitoring-test-tempo 3200:3200
 ### Grafana
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| enabled | Enable Grafana | false |
+| enabled | Enable Grafana | true |
 | adminPassword | Admin password | "admin" |
 | serviceType | Service type | "ClusterIP" |
 | storage | Storage size | "5Gi" |
@@ -166,21 +170,21 @@ kubectl port-forward svc/monitoring-test-tempo 3200:3200
 ### Loki
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| enabled | Enable Loki | false |
+| enabled | Enable Loki | true |
 | storage | Storage size | "10Gi" |
 | retentionDays | Log retention period in days | 14 |
 
 ### Promtail
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| enabled | Enable Promtail | false |
+| enabled | Enable Promtail | true |
 | resources | Resource requests and limits | see example |
 | scrapeKubernetesLogs | Enable Kubernetes log scraping | true |
 
 ### Tempo
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| enabled | Enable Tempo | false |
+| enabled | Enable Tempo | true |
 | storage | Storage size | "10Gi" |
 | retentionDays | Trace retention period in days | 7 |
 | resources | Resource requests and limits | see example |
@@ -224,7 +228,7 @@ kubectl logs -l app=kube-insight-operator
 
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 1. Fork the repository
