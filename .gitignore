@@ -11,8 +11,7 @@
 go.work
 
 # Random
-notes
-
+**/notes/
 # Golang Dep
 /vendor/
 /Godeps/
