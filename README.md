@@ -15,6 +15,7 @@ Kube Insight Operator simplifies Kubernetes observability by:
 
 ### Immediate Priorities
 - [ ] Implement comprehensive status reporting for all observability components
+- [ ] Develop Stronger Authentication and Authorization Mechanisms
 - [ ] Enhance error handling and logging
 - [ ] Develop a Helm chart for easier deployment
 - [ ] Create detailed documentation for configuration and customization
