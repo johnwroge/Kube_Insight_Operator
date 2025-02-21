@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/test/utils"
+	"github.com/johnwroge/kube-insight-operator/test/utils"
 )
 
 const namespace = "kube-insight-operator-new-system"

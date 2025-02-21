@@ -25,8 +25,8 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	monitoringv1alpha1 "github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/api/v1alpha1"
-	"github.com/johnwroge/kube-insight-operator/kube-insight-operator-new/internal/controller"
+	monitoringv1alpha1 "github.com/johnwroge/kube-insight-operator/api/v1alpha1"
+	"github.com/johnwroge/kube-insight-operator/internal/controller"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"

@@ -1,8 +1,28 @@
-# kube-insight-operator-new
-// TODO(user): Add simple overview of use/purpose
+# kube-insight-operator
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+
+Kube_Insight_Operator is a comprehensive Kubernetes operator designed to streamline and automate the deployment and management of a complete observability stack in Kubernetes environments. By integrating industry-standard tools including Prometheus, Grafana, Loki, Promtail, and Tempo, it provides a unified solution for metrics monitoring, log aggregation, and distributed tracing.
+
+The operator addresses common challenges in Kubernetes observability by offering:
+
+- **Automated Deployment and Configuration**: Simplifies the installation and integration of multiple observability components through a single CustomResourceDefinition (CRD). Users can deploy the entire stack with a single YAML configuration.
+
+- **Integrated Monitoring Pipeline**: 
+  - Metrics collection and storage via Prometheus with built-in support for node-exporter and kube-state-metrics
+  - Log aggregation through Loki and Promtail with automated Kubernetes log scraping
+  - Distributed tracing capabilities with Tempo
+  - Unified visualization through Grafana with pre-configured data sources
+
+- **Resource Management**: Handles storage provisioning, retention policies, and resource allocation for all components, with configurable parameters for storage size, retention periods, and compute resources.
+
+- **Operational Simplicity**: Manages the complete lifecycle of the observability stack, including updates, scaling, and configuration changes, reducing operational overhead for DevOps teams.
+
+- **Pre-built Dashboards**: Comes with default Grafana dashboards for common use cases, providing immediate visibility into cluster health and performance metrics.
+
+The operator is designed for Kubernetes environments version 1.19 and above, making it suitable for both development and production clusters. It follows cloud-native best practices and provides a modular architecture where components can be enabled or disabled based on requirements.
+
+This experimental project aims to simplify the complexity of Kubernetes observability while providing flexibility for customization through comprehensive configuration options. It serves as a foundation for building robust monitoring and observability solutions in Kubernetes environments.
 
 ## Getting Started
 
@@ -16,7 +36,7 @@
 **Build and push your image to the location specified by `IMG`:**
 
 ```sh
-make docker-build docker-push IMG=<some-registry>/kube-insight-operator-new:tag
+make docker-build docker-push IMG=<some-registry>/kube-insight-operator:tag
 ```
 
 **NOTE:** This image ought to be published in the personal registry you specified.
@@ -32,7 +52,7 @@ make install
 **Deploy the Manager to the cluster with the image specified by `IMG`:**
 
 ```sh
-make deploy IMG=<some-registry>/kube-insight-operator-new:tag
+make deploy IMG=<some-registry>/kube-insight-operator:tag
 ```
 
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
@@ -73,7 +93,7 @@ Following are the steps to build the installer and distribute this project to us
 1. Build the installer for the image built and published in the registry:
 
 ```sh
-make build-installer IMG=<some-registry>/kube-insight-operator-new:tag
+make build-installer IMG=<some-registry>/kube-insight-operator:tag
 ```
 
 NOTE: The makefile target mentioned above generates an 'install.yaml'
@@ -86,7 +106,7 @@ its dependencies.
 Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/kube-insight-operator-new/<tag or branch>/dist/install.yaml
+kubectl apply -f https://raw.githubusercontent.com/<org>/kube-insight-operator/<tag or branch>/dist/install.yaml
 ```
 
 ## Contributing
