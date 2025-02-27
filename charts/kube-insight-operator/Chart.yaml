@@ -1,0 +1,23 @@
+apiVersion: v2
+name: kube-insight-operator
+description: A Kubernetes operator that deploys and manages a complete observability stack combining metrics, logs, and traces
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.19.0-0"
+keywords:
+  - kubernetes
+  - operator
+  - prometheus
+  - grafana
+  - loki
+  - tempo
+  - observability
+  - monitoring
+home: https://github.com/johnwroge/kube-insight-operator
+sources:
+  - https://github.com/johnwroge/kube-insight-operator
+maintainers:
+  - name: John Wroge
+    url: https://github.com/johnwroge
+dependencies: []
