@@ -77,10 +77,34 @@ defaultStack:
       enabled: true
       storage: "10Gi"
       retention: "15d"
+      # Resource settings for Prometheus
+      resources:
+        requests:
+          cpu: "200m"
+          memory: "256Mi"
+        limits:
+          cpu: "1"
+          memory: "1Gi"
       nodeExporter:
         enabled: true
+        # Resource settings for Node Exporter
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "100m"
+            memory: "128Mi"
       kubeStateMetrics:
         enabled: true
+        # Resource settings for kube-state-metrics
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
     
     grafana:
       enabled: true
@@ -88,6 +112,14 @@ defaultStack:
       serviceType: "ClusterIP"
       storage: "5Gi"
       defaultDashboards: true
+      # Resource settings for Grafana
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "256Mi"
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
       additionalDataSources:
       - name: "prometheus"
         type: "prometheus"
@@ -104,6 +136,14 @@ defaultStack:
       enabled: true
       storage: "10Gi"
       retentionDays: 15
+      # Resource settings for Loki
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "256Mi"
+        limits:
+          cpu: "1"
+          memory: "1Gi"
     
     promtail:
       enabled: true
@@ -113,6 +153,8 @@ defaultStack:
         cpuLimit: "200m"
         memoryLimit: "256Mi"
       scrapeKubernetesLogs: true
+      # Optional: Add extra arguments
+      extraArgs: []
     
     tempo:
       enabled: true
@@ -123,3 +165,28 @@ defaultStack:
         memoryRequest: "512Mi"
         cpuLimit: "1"
         memoryLimit: "2Gi"
+
+# Storage configuration
+storage:
+  # Storage class to use for persistent volumes
+  # If not set, the default storage class will be used
+  className: ""
+  
+  # Access modes for persistent volumes
+  accessModes:
+    - ReadWriteOnce
+
+# Advanced configuration
+advanced:
+  # Enable leader election for high availability
+  leaderElection: true
+  
+  # Log level for the operator
+  logLevel: "info"
+  
+  # Metrics configuration
+  metrics:
+    # Enable metrics service
+    enabled: true
+    # Service type for metrics
+    serviceType: "ClusterIP"

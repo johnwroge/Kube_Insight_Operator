@@ -1,0 +1,88 @@
+{{- if .Values.defaultStack.create -}}
+apiVersion: monitoring.monitoring.example.com/v1alpha1
+kind: ObservabilityStack
+metadata:
+  name: {{ .Release.Name }}-monitoring
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kube-insight-operator.labels" . | nindent 4 }}
+spec:
+  prometheus:
+    enabled: {{ .Values.defaultStack.spec.prometheus.enabled }}
+    storage: {{ .Values.defaultStack.spec.prometheus.storage | quote }}
+    retention: {{ .Values.defaultStack.spec.prometheus.retention | quote }}
+    nodeExporter:
+      enabled: {{ .Values.defaultStack.spec.prometheus.nodeExporter.enabled }}
+      {{- if .Values.defaultStack.spec.prometheus.nodeExporter.resources }}
+      resources:
+        cpuRequest: {{ .Values.defaultStack.spec.prometheus.nodeExporter.resources.requests.cpu | quote }}
+        memoryRequest: {{ .Values.defaultStack.spec.prometheus.nodeExporter.resources.requests.memory | quote }}
+        cpuLimit: {{ .Values.defaultStack.spec.prometheus.nodeExporter.resources.limits.cpu | quote }}
+        memoryLimit: {{ .Values.defaultStack.spec.prometheus.nodeExporter.resources.limits.memory | quote }}
+      {{- end }}
+    kubeStateMetrics:
+      enabled: {{ .Values.defaultStack.spec.prometheus.kubeStateMetrics.enabled }}
+      {{- if .Values.defaultStack.spec.prometheus.kubeStateMetrics.resources }}
+      resources:
+        cpuRequest: {{ .Values.defaultStack.spec.prometheus.kubeStateMetrics.resources.requests.cpu | quote }}
+        memoryRequest: {{ .Values.defaultStack.spec.prometheus.kubeStateMetrics.resources.requests.memory | quote }}
+        cpuLimit: {{ .Values.defaultStack.spec.prometheus.kubeStateMetrics.resources.limits.cpu | quote }}
+        memoryLimit: {{ .Values.defaultStack.spec.prometheus.kubeStateMetrics.resources.limits.memory | quote }}
+      {{- end }}
+  
+  grafana:
+    enabled: {{ .Values.defaultStack.spec.grafana.enabled }}
+    adminPassword: {{ .Values.defaultStack.spec.grafana.adminPassword | quote }}
+    serviceType: {{ .Values.defaultStack.spec.grafana.serviceType | quote }}
+    storage: {{ .Values.defaultStack.spec.grafana.storage | quote }}
+    defaultDashboards: {{ .Values.defaultStack.spec.grafana.defaultDashboards }}
+    {{- if .Values.defaultStack.spec.grafana.resources }}
+    resources:
+      cpuRequest: {{ .Values.defaultStack.spec.grafana.resources.requests.cpu | quote }}
+      memoryRequest: {{ .Values.defaultStack.spec.grafana.resources.requests.memory | quote }}
+      cpuLimit: {{ .Values.defaultStack.spec.grafana.resources.limits.cpu | quote }}
+      memoryLimit: {{ .Values.defaultStack.spec.grafana.resources.limits.memory | quote }}
+    {{- end }}
+    additionalDataSources:
+    {{- range .Values.defaultStack.spec.grafana.additionalDataSources }}
+    - name: {{ .name | quote }}
+      type: {{ .type | quote }}
+      url: {{ .url | replace "monitoring-test" (printf "%s-monitoring" $.Release.Name) | quote }}
+      isDefault: {{ .isDefault }}
+    {{- end }}
+  
+  loki:
+    enabled: {{ .Values.defaultStack.spec.loki.enabled }}
+    storage: {{ .Values.defaultStack.spec.loki.storage | quote }}
+    retentionDays: {{ .Values.defaultStack.spec.loki.retentionDays }}
+    {{- if .Values.defaultStack.spec.loki.resources }}
+    resources:
+      cpuRequest: {{ .Values.defaultStack.spec.loki.resources.requests.cpu | quote }}
+      memoryRequest: {{ .Values.defaultStack.spec.loki.resources.requests.memory | quote }}
+      cpuLimit: {{ .Values.defaultStack.spec.loki.resources.limits.cpu | quote }}
+      memoryLimit: {{ .Values.defaultStack.spec.loki.resources.limits.memory | quote }}
+    {{- end }}
+  
+  promtail:
+    enabled: {{ .Values.defaultStack.spec.promtail.enabled }}
+    resources:
+      cpuRequest: {{ .Values.defaultStack.spec.promtail.resources.cpuRequest | quote }}
+      memoryRequest: {{ .Values.defaultStack.spec.promtail.resources.memoryRequest | quote }}
+      cpuLimit: {{ .Values.defaultStack.spec.promtail.resources.cpuLimit | quote }}
+      memoryLimit: {{ .Values.defaultStack.spec.promtail.resources.memoryLimit | quote }}
+    scrapeKubernetesLogs: {{ .Values.defaultStack.spec.promtail.scrapeKubernetesLogs }}
+    {{- if .Values.defaultStack.spec.promtail.extraArgs }}
+    extraArgs:
+      {{- toYaml .Values.defaultStack.spec.promtail.extraArgs | nindent 6 }}
+    {{- end }}
+  
+  tempo:
+    enabled: {{ .Values.defaultStack.spec.tempo.enabled }}
+    storage: {{ .Values.defaultStack.spec.tempo.storage | quote }}
+    retentionDays: {{ .Values.defaultStack.spec.tempo.retentionDays }}
+    resources:
+      cpuRequest: {{ .Values.defaultStack.spec.tempo.resources.cpuRequest | quote }}
+      memoryRequest: {{ .Values.defaultStack.spec.tempo.resources.memoryRequest | quote }}
+      cpuLimit: {{ .Values.defaultStack.spec.tempo.resources.cpuLimit | quote }}
+      memoryLimit: {{ .Values.defaultStack.spec.tempo.resources.memoryLimit | quote }}
+{{- end }}

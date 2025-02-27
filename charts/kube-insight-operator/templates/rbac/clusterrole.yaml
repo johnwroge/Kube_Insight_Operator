@@ -6,7 +6,7 @@ metadata:
   labels:
     {{- include "kube-insight-operator.labels" . | nindent 4 }}
 rules:
-  # Common permissions for all components
+  # Core API permissions for all components
   - apiGroups:
       - ""
     resources:
@@ -16,6 +16,14 @@ rules:
       - serviceaccounts
       - pods
       - nodes
+      - endpoints
+      - namespaces
+      - persistentvolumeclaims
+      - persistentvolumes
+      - events
+      - limitranges
+      - replicationcontrollers
+      - resourcequotas
     verbs:
       - get
       - list
@@ -25,13 +33,25 @@ rules:
       - patch
       - delete
   
-  # Permissions for the operator to manage deployments and statefulsets
+  # Node-specific permissions for monitoring
+  - apiGroups:
+      - ""
+    resources:
+      - nodes/metrics
+      - nodes/proxy
+    verbs:
+      - get
+      - list
+      - watch
+  
+  # Apps API group permissions
   - apiGroups:
       - apps
     resources:
       - deployments
       - statefulsets
       - daemonsets
+      - replicasets
     verbs:
       - get
       - list
@@ -41,7 +61,55 @@ rules:
       - patch
       - delete
   
-  # Permissions for the ObservabilityStack CRD
+  # Batch API group permissions for kube-state-metrics
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+      - cronjobs
+    verbs:
+      - get
+      - list
+      - watch
+  
+  # Networking API group permissions
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  
+  # Storage API group permissions
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+  
+  # Permissions for RBAC management
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterroles
+      - clusterrolebindings
+      - roles
+      - rolebindings
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  
+  # Permissions for ObservabilityStack CRD
   - apiGroups:
       - monitoring.monitoring.example.com
     resources:
@@ -57,12 +125,19 @@ rules:
       - update
       - watch
   
-  # Additional permissions for monitoring components
+  # Permissions for non-resource URLs (Prometheus metrics scraping)
+  - nonResourceURLs:
+      - /metrics
+      - /api
+      - /api/*
+    verbs:
+      - get
+  
+  # Coordination API group for leader election
   - apiGroups:
-      - rbac.authorization.k8s.io
+      - coordination.k8s.io
     resources:
-      - clusterroles
-      - clusterrolebindings
+      - leases
     verbs:
       - get
       - list
@@ -71,12 +146,4 @@ rules:
       - update
       - patch
       - delete
-  
-  # Permissions for node-exporter
-  - apiGroups:
-      - ""
-    resources:
-      - nodes/metrics
-    verbs:
-      - get
 {{- end }}
