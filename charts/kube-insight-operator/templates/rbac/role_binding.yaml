@@ -1,0 +1,17 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "kube-insight-operator.fullname" . }}
+  namespace: {{ .Values.operator.namespace }}
+  labels:
+    {{- include "kube-insight-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "kube-insight-operator.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "kube-insight-operator.serviceAccountName" . }}
+  namespace: {{ .Values.operator.namespace }}
+{{- end }}

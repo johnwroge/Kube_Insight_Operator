@@ -1,0 +1,82 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "kube-insight-operator.fullname" . }}
+  labels:
+    {{- include "kube-insight-operator.labels" . | nindent 4 }}
+rules:
+  # Common permissions for all components
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - secrets
+      - services
+      - serviceaccounts
+      - pods
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  
+  # Permissions for the operator to manage deployments and statefulsets
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+      - statefulsets
+      - daemonsets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  
+  # Permissions for the ObservabilityStack CRD
+  - apiGroups:
+      - monitoring.monitoring.example.com
+    resources:
+      - observabilitystacks
+      - observabilitystacks/status
+      - observabilitystacks/finalizers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  
+  # Additional permissions for monitoring components
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterroles
+      - clusterrolebindings
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  
+  # Permissions for node-exporter
+  - apiGroups:
+      - ""
+    resources:
+      - nodes/metrics
+    verbs:
+      - get
+{{- end }}

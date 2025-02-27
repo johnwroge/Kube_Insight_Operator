@@ -1,0 +1,89 @@
+Thank you for installing {{ .Chart.Name }} (version: {{ .Chart.Version }})!
+
+The Kube Insight Operator has been deployed to your cluster and is ready to manage your observability stack.
+
+To verify the operator is running:
+  kubectl get pods -n {{ .Values.operator.namespace }} -l app.kubernetes.io/name={{ include "kube-insight-operator.name" . }}
+
+Now you can create an ObservabilityStack custom resource to deploy the monitoring stack:
+
+1. Create a YAML file named 'observability-stack.yaml' with the following content:
+
+apiVersion: monitoring.monitoring.example.com/v1alpha1
+kind: ObservabilityStack
+metadata:
+  name: monitoring-stack
+spec:
+  prometheus:
+    enabled: true
+    storage: "10Gi"
+    retention: "15d"
+    nodeExporter:
+      enabled: true
+    kubeStateMetrics:
+      enabled: true
+  grafana:
+    enabled: true
+    adminPassword: "admin"
+    serviceType: "ClusterIP"
+    storage: "5Gi"
+    defaultDashboards: true
+    additionalDataSources:
+    - name: "prometheus"
+      type: "prometheus"
+      url: "http://monitoring-stack-prometheus:9090"
+      isDefault: true
+    - name: "tempo"
+      type: "tempo"
+      url: "http://monitoring-stack-tempo:3200"
+    - name: "loki"
+      type: "loki"
+      url: "http://monitoring-stack-loki:3100"
+  loki:
+    enabled: true
+    storage: "10Gi"
+    retentionDays: 15
+  promtail:
+    enabled: true
+    resources:
+      cpuRequest: "100m"
+      memoryRequest: "128Mi"
+      cpuLimit: "200m"
+      memoryLimit: "256Mi"
+    scrapeKubernetesLogs: true
+  tempo:
+    enabled: true
+    storage: "10Gi"
+    retentionDays: 7
+    resources:
+      cpuRequest: "200m"
+      memoryRequest: "512Mi"
+      cpuLimit: "1"
+      memoryLimit: "2Gi"
+
+2. Apply the file to your cluster:
+   kubectl apply -f observability-stack.yaml
+
+3. Check the status of your observability stack:
+   kubectl get observabilitystacks
+
+4. Access the components (using port-forwarding):
+
+   # Grafana
+   kubectl port-forward svc/monitoring-stack-grafana 3000:3000
+   # Access at http://localhost:3000 (default credentials: admin/admin)
+
+   # Prometheus
+   kubectl port-forward svc/monitoring-stack-prometheus 9090:9090
+   # Access at http://localhost:9090
+
+   # Loki
+   kubectl port-forward svc/monitoring-stack-loki 3100:3100
+   # Access at http://localhost:3100
+
+   # Tempo
+   kubectl port-forward svc/monitoring-stack-tempo 3200:3200
+   # Access at http://localhost:3200
+
+For more information and configuration options, visit:
+https://github.com/johnwroge/kube-insight-operator
